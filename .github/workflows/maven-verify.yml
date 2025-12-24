@@ -1,0 +1,30 @@
+name: CI on main
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+    - main
+  pull_request:
+    - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Setup Maven
+      uses: s4u/setup-maven-action@v1.19.0
+      with:
+        java-version: 21
+        settings-servers: |
+          [{
+            "id": "github-thenestruo-parent",
+            "username": "theNestruo",
+            "password": "${{ secrets.THENESTRUO_PARENT_PASSWORD }}"
+          }]
+
+    - name: mvn verify
+      run: mvn --batch-mode verify
