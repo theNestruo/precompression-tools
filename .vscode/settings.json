@@ -1,4 +1,6 @@
 {
+	"explorer.excludeGitIgnore": true,
+
 	// No AI
 	"chat.disableAIFeatures": true,
 }
