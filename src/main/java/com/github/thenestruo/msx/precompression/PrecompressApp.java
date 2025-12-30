@@ -19,7 +19,15 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.tinylog.Logger;
 import org.tinylog.configuration.Configuration;
 
+import com.github.thenestruo.msx.precompression.impl.ColorAndPatternMsxLineOptimizer;
+import com.github.thenestruo.msx.precompression.impl.ColorOnlyMsxLineOptimizer;
+import com.github.thenestruo.msx.precompression.impl.DefaultOptimizationMerger;
 import com.github.thenestruo.msx.precompression.impl.MsxCharsetOptimizerImpl;
+import com.github.thenestruo.msx.precompression.impl.NullMsxLineOptimizer;
+import com.github.thenestruo.msx.precompression.impl.PatternAndColorMsxLineOptimizer;
+import com.github.thenestruo.msx.precompression.impl.PatternOnlyMsxLineOptimizer;
+import com.github.thenestruo.msx.precompression.impl.PrioritizeColorOptimizationMerger;
+import com.github.thenestruo.msx.precompression.impl.PrioritizePatternOptimizationMerger;
 import com.github.thenestruo.msx.precompression.model.MsxCharset;
 
 public class PrecompressApp {
@@ -77,18 +85,16 @@ public class PrecompressApp {
 			return;
 		}
 
-		final MsxCharset charset = new MsxCharset(chrPair.getRight(), clrPair.getRight());
-
-		configureRleOptimizer(new MsxCharsetOptimizerImpl(), command)
-				.optimize(charset);
+		final MsxCharset optimizedCharset = buildMsxCharsetOptimizer(command)
+				.optimize(new MsxCharset(chrPair.getRight(), clrPair.getRight()));
 
 		// Writes the optimized file
 		final Path chrOutputPath = chrInputPath.resolveSibling(String.format("%s.opt", chrInputPath.getFileName()));
 		final Path clrOutputPath = clrInputPath.resolveSibling(String.format("%s.opt", clrInputPath.getFileName()));
 		Logger.debug("Binary files to be written: {}, {}", chrOutputPath, clrOutputPath);
 
-		Files.write(chrOutputPath, charset.chrtbl(), StandardOpenOption.CREATE);
-		Files.write(clrOutputPath, charset.clrtbl(), StandardOpenOption.CREATE);
+		Files.write(chrOutputPath, optimizedCharset.chrtbl(), StandardOpenOption.CREATE);
+		Files.write(clrOutputPath, optimizedCharset.clrtbl(), StandardOpenOption.CREATE);
 		Logger.debug("Binary files {}, {} written", chrOutputPath, clrOutputPath);
 	}
 
@@ -177,28 +183,50 @@ public class PrecompressApp {
 		return argList.isEmpty() ? defaultValue : argList.remove(0);
 	}
 
-	private static MsxCharsetOptimizer configureRleOptimizer(final MsxCharsetOptimizer rleOptimizer, final CommandLine command) {
+	private static MsxCharsetOptimizer buildMsxCharsetOptimizer(final CommandLine command) {
 
-		if (!command.hasOption(EXCLUDE)) {
-			return rleOptimizer;
+		final MsxCharsetOptimizer optimizer = new MsxCharsetOptimizerImpl();
+
+		if (command.hasOption(PATTERN_NO)) {
+			optimizer.setPatternOptimizer(NullMsxLineOptimizer.INSTANCE);
+		} else if (command.hasOption(PATTERN_YES)) {
+			optimizer.setPatternOptimizer(PatternOnlyMsxLineOptimizer.INSTANCE);
+		} else if (command.hasOption(PATTERN_AND_COLOR)) {
+			optimizer.setPatternOptimizer(PatternAndColorMsxLineOptimizer.INSTANCE);
 		}
 
-		final String optionValue = command.getOptionValue(EXCLUDE);
-		final String[] values = StringUtils.splitByWholeSeparator(optionValue, "..");
-		if (values.length != 2) {
-			return rleOptimizer;
+		if (command.hasOption(COLOR_NO)) {
+			optimizer.setColorOptimizer(NullMsxLineOptimizer.INSTANCE);
+		} else if (command.hasOption(COLOR_YES)) {
+			optimizer.setColorOptimizer(ColorOnlyMsxLineOptimizer.INSTANCE);
+		} else if (command.hasOption(COLOR_AND_PATTERN)) {
+			optimizer.setColorOptimizer(ColorAndPatternMsxLineOptimizer.INSTANCE);
 		}
-		try {
-			final int from = Integer.decode(values[0]);
-			final int to = Integer.decode(values[1]);
-			if ((from < 0) || (to < from)) {
-				return rleOptimizer;
+
+		if (command.hasOption(PRIORITIZE_BALANCED)) {
+			optimizer.setMerger(DefaultOptimizationMerger.INSTANCE);
+		} else if (command.hasOption(PRIORITIZE_PATTERN)) {
+			optimizer.setMerger(PrioritizePatternOptimizationMerger.INSTANCE);
+		} else if (command.hasOption(PRIORITIZE_COLOR)) {
+			optimizer.setMerger(PrioritizeColorOptimizationMerger.INSTANCE);
+		}
+
+		if (command.hasOption(EXCLUDE)) {
+			final String optionValue = command.getOptionValue(EXCLUDE);
+			final String[] values = StringUtils.splitByWholeSeparator(optionValue, "..");
+			if (values.length == 2) {
+				try {
+					final int from = Integer.decode(values[0]);
+					final int to = Integer.decode(values[1]);
+					if ((from >= 0) && (to >= from)) {
+						optimizer.setExclusion(from, to);
+					}
+
+				} catch (final NumberFormatException e) {
+					return optimizer;
+				}
 			}
-
-			return rleOptimizer.withExclusion(from, to);
-
-		} catch (final NumberFormatException e) {
-			return rleOptimizer;
 		}
+		return optimizer;
 	}
 }

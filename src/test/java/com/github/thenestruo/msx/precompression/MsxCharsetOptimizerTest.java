@@ -73,9 +73,9 @@ public class MsxCharsetOptimizerTest {
 		// When
 
 		final MsxCharset optimizedCharset = new MsxCharsetOptimizerImpl()
-				.withPatternOptimizer(patternOptimizer)
-				.withColorOptimizer(colorOptimizer)
-				.withMerger(merger)
+				.setPatternOptimizer(patternOptimizer)
+				.setColorOptimizer(colorOptimizer)
+				.setMerger(merger)
 				.optimize(referenceCharset);
 
 		// Then

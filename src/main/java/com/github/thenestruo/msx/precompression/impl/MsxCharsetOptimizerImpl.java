@@ -46,34 +46,33 @@ public class MsxCharsetOptimizerImpl implements MsxCharsetOptimizer {
 	//
 
 	@Override
-	public MsxCharsetOptimizer withPatternOptimizer(final MsxLineOptimizer patternOptimizer) {
+	public MsxCharsetOptimizer setPatternOptimizer(final MsxLineOptimizer patternOptimizer) {
 		this.patternOptimizer = Objects.requireNonNullElse(patternOptimizer, DEFAULT_PATTERN_OPTIMIZER);
 		return this;
 	}
 
 	@Override
-	public MsxCharsetOptimizer withColorOptimizer(final MsxLineOptimizer colorOptimizer) {
+	public MsxCharsetOptimizer setColorOptimizer(final MsxLineOptimizer colorOptimizer) {
 		this.colorOptimizer = Objects.requireNonNullElse(colorOptimizer, DEFAULT_PATTERN_OPTIMIZER);
 		return this;
 	}
 
 	@Override
-	public MsxCharsetOptimizer withMerger(final OptimizationMerger merger) {
+	public MsxCharsetOptimizer setMerger(final OptimizationMerger merger) {
 		this.merger = Objects.requireNonNullElse(merger, DEFAULT_MERGER);
 		return this;
 	}
 
 	@Override
-	public MsxCharsetOptimizer withExclusion(final int from, final int to) {
+	public MsxCharsetOptimizer setExclusion(final int from, final int to) {
 		this.exclusion = new NumberRange<>(from, to, null);
 		return this;
 	}
 
-	//
-
 	@Override
 	public MsxCharset optimize(final MsxCharset charset) {
 
+		// (creates a mutable instance)
 		final MsxCharset optimizedCharset = new MsxCharset(charset);
 
 		for (final Optimization optimizationRange : this.computeOptimizationRanges(optimizedCharset)) {
@@ -82,6 +81,8 @@ public class MsxCharsetOptimizerImpl implements MsxCharsetOptimizer {
 
 		return optimizedCharset;
 	}
+
+	//
 
 	private List<Optimization> computeOptimizationRanges(final MsxCharset charset) {
 

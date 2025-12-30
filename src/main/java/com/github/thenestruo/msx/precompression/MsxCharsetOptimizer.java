@@ -4,13 +4,13 @@ import com.github.thenestruo.msx.precompression.model.MsxCharset;
 
 public interface MsxCharsetOptimizer {
 
-	MsxCharsetOptimizer withPatternOptimizer(MsxLineOptimizer patternOptimizer);
+	MsxCharsetOptimizer setPatternOptimizer(MsxLineOptimizer patternOptimizer);
 
-	MsxCharsetOptimizer withColorOptimizer(MsxLineOptimizer colorOptimizer);
+	MsxCharsetOptimizer setColorOptimizer(MsxLineOptimizer colorOptimizer);
 
-	MsxCharsetOptimizer withMerger(OptimizationMerger merger);
+	MsxCharsetOptimizer setMerger(OptimizationMerger merger);
 
-	MsxCharsetOptimizer withExclusion(int from, int to);
+	MsxCharsetOptimizer setExclusion(int from, int to);
 
 	MsxCharset optimize(MsxCharset charset);
 }
