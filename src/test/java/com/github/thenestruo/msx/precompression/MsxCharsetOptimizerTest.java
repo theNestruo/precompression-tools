@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.Strings;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
@@ -37,12 +36,14 @@ import com.github.thenestruo.util.ClassPathResource;
 public class MsxCharsetOptimizerTest {
 
 	private static final Map<String, Integer> referenceUncompressedTotalSizes = new LinkedHashMap<>();
+	private static final Map<String, Integer> referenceOptimizedZx0TotalSizes = new LinkedHashMap<>();
 	private static final Map<String, Integer> referenceZx0TotalSizes = new LinkedHashMap<>();
 	private static final Map<String, Integer> zx0TotalSizes = new LinkedHashMap<>();
 
 	@BeforeAll
 	static void beforeAll() {
 		referenceUncompressedTotalSizes.clear();
+		referenceOptimizedZx0TotalSizes.clear();
 		referenceZx0TotalSizes.clear();
 		zx0TotalSizes.clear();
 	}
@@ -69,6 +70,19 @@ public class MsxCharsetOptimizerTest {
 		final int referenceUncompressedTotalSize = referenceUncompressedChrSize + referenceUncompressedClrSize;
 
 		final MsxCharset referenceCharset = new MsxCharset(chrBytes, clrBytes);
+
+		final byte[] oChrBytes;
+		final byte[] oClrBytes;
+		try (
+				final InputStream chrInputStream = new ClassPathResource(filename + ".chr-o").getInputStream();
+				final InputStream clrInputStream = new ClassPathResource(filename + ".clr-o").getInputStream()) {
+			oChrBytes = chrInputStream.readAllBytes();
+			oClrBytes = clrInputStream.readAllBytes();
+		}
+		Assumptions.assumeTrue(oChrBytes.length == oClrBytes.length);
+		final int referenceOptimizedZx0ChrSize = zx0(oChrBytes).length;
+		final int referenceOptimizedZx0ClrSize = zx0(oClrBytes).length;
+		final int referenceOptimizedZx0TotalSize = referenceOptimizedZx0ChrSize + referenceOptimizedZx0ClrSize;
 
 		// When
 
@@ -114,19 +128,26 @@ public class MsxCharsetOptimizerTest {
 
 		Logger.info(String.format("%s :: B:%4d "
 				+ "-> B:%4d (%4d+%4d)  E:%2d%% (%2d%%,%2d%%)  CR:%2.2f%% "
+				+ "(-> B:%4d (%4d+%4d)) "
 				+ "-> B:%4d (%4d+%4d) [%+5d (%+5d%+5d)]  E:%2d%% (%2d%%,%2d%%) [%+3d%%]  CR:%2.2f%% [%+3.2f%%] "
 				+ ":: %s",
 				filename,
+				//
 				referenceUncompressedTotalSize,
 				referenceZx0TotalSize, referenceZx0ChrSize, referenceZx0ClrSize,
 				(int) referenceEntropyRatio, (int) referenceChrEntropyRatio, (int) referenceClrEntropyRatio,
 				referenceZx0Ratio,
+				//
+				referenceOptimizedZx0TotalSize, referenceOptimizedZx0ChrSize, referenceOptimizedZx0ClrSize,
+				//
 				zx0TotalSize, zx0ChrSize, zx0ClrSize, zx0Delta, zx0ChrDelta, zx0ClrDelta,
 				(int) entropyRatio, (int) chrEntropyRatio, (int) clrEntropyRatio, (int) entropyRatioDelta,
 				zx0Ratio, zx0RatioDelta,
+				//
 				label));
 
 		referenceUncompressedTotalSizes.put(label, referenceUncompressedTotalSizes.getOrDefault(label, 0) + referenceUncompressedTotalSize);
+		referenceOptimizedZx0TotalSizes.put(label, referenceOptimizedZx0TotalSizes.getOrDefault(label, 0) + referenceOptimizedZx0TotalSize);
 		referenceZx0TotalSizes.put(label, referenceZx0TotalSizes.getOrDefault(label, 0) + referenceZx0TotalSize);
 		zx0TotalSizes.put(label, zx0TotalSizes.getOrDefault(label, 0) + zx0TotalSize);
 	}
@@ -145,6 +166,9 @@ public class MsxCharsetOptimizerTest {
 			final int referenceZx0TotalSize = referenceZx0TotalSizes.get(label);
 			final double referenceZx0Ratio = (100.0d * referenceZx0TotalSize) / referenceUncompressedTotalSize;
 
+			final int referenceOptimizedZx0TotalSize = referenceOptimizedZx0TotalSizes.get(label);
+			final double referenceOptimizedZx0Ratio = (100.0d * referenceOptimizedZx0TotalSize) / referenceUncompressedTotalSize;
+
 			final int zx0TotalSize = entry.getValue();
 			final int zx0Delta = zx0TotalSize - referenceZx0TotalSize;
 			final double zx0Ratio = (100.0d * zx0TotalSize) / referenceUncompressedTotalSize;
@@ -152,10 +176,13 @@ public class MsxCharsetOptimizerTest {
 
 			Logger.info(String.format("Total :: B:%4d "
 				+ "-> B:%4d  CR:%2.2f%% "
+				+ "-> B-o:%4d [%+5d]  CR-o:%2.2f%% [%+3.2f%%] "
 				+ "-> B:%4d [%+5d]  CR:%2.2f%% [%+3.2f%%] "
 				+ ":: %s",
 				referenceUncompressedTotalSize,
 				referenceZx0TotalSize, referenceZx0Ratio,
+				referenceOptimizedZx0TotalSize, referenceOptimizedZx0TotalSize - referenceZx0TotalSize,
+				referenceOptimizedZx0Ratio, referenceOptimizedZx0Ratio - referenceZx0Ratio,
 				zx0TotalSize, zx0Delta, zx0Ratio, zx0RatioDelta,
 				label));
 		}
