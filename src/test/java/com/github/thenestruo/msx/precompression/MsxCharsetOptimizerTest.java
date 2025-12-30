@@ -34,7 +34,7 @@ import com.github.thenestruo.msx.precompression.model.MsxCharset;
 import com.github.thenestruo.util.ByteArrayUtils;
 import com.github.thenestruo.util.ClassPathResource;
 
-public class MsxCharsetOptimizerIT {
+public class MsxCharsetOptimizerTest {
 
 	private static final Map<String, Integer> referenceUncompressedTotalSizes = new LinkedHashMap<>();
 	private static final Map<String, Integer> referenceZx0TotalSizes = new LinkedHashMap<>();
@@ -60,8 +60,8 @@ public class MsxCharsetOptimizerIT {
 		try (
 				final InputStream chrInputStream = new ClassPathResource(filename + ".chr").getInputStream();
 				final InputStream clrInputStream = new ClassPathResource(filename + ".clr").getInputStream()) {
-			chrBytes = IOUtils.toByteArray(chrInputStream);
-			clrBytes = IOUtils.toByteArray(clrInputStream);
+			chrBytes = chrInputStream.readAllBytes();
+			clrBytes = clrInputStream.readAllBytes();
 		}
 		Assumptions.assumeTrue(chrBytes.length == clrBytes.length);
 		final int referenceUncompressedChrSize = chrBytes.length;
