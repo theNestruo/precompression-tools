@@ -1,4 +1,7 @@
 target
 
-test/*.opt
-test/*.zx0
+lib
+!lib/git-clone-mvn-install-zx0-java.bat
+
+src/test/resources/trucho-*.*
+src/test/resources/roadster-*.*

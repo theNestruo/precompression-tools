@@ -1,5 +1,10 @@
 {
-	"explorer.excludeGitIgnore": true,
+	"files.exclude": {
+		"**/target": true,
+	},
+	"search.exclude": {
+		"lib": true
+	},
 
 	// No AI
 	"chat.disableAIFeatures": true,

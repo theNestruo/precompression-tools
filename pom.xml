@@ -1,111 +1,137 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
 
-    <parent>
-        <groupId>com.github.thenestruo</groupId>
-        <artifactId>thenestruo-cli-parent</artifactId>
-        <version>3.2</version>
-        <relativePath />
-    </parent>
+	<parent>
+		<groupId>com.github.thenestruo</groupId>
+		<artifactId>thenestruo-cli-parent</artifactId>
+		<version>3.3</version>
+		<relativePath />
+	</parent>
 
-    <groupId>com.github.thenestruo.msx.precompression</groupId>
-    <artifactId>precompression</artifactId>
-    <version>1.0-SNAPSHOT</version>
+	<groupId>com.github.thenestruo.msx.precompression</groupId>
+	<artifactId>precompression</artifactId>
+	<version>1.0-SNAPSHOT</version>
 
-    <properties>
-        <mainClass>com.github.thenestruo.msx.precompression.PrecompressApp</mainClass>
-    </properties>
+	<properties>
+		<mainClass>com.github.thenestruo.msx.precompression.PrecompressApp</mainClass>
+	</properties>
 
-    <dependencies>
+	<dependencies>
 
-        <dependency>
-            <groupId>com.github.thenestruo</groupId>
-            <artifactId>thenestruo-commons</artifactId>
-        </dependency>
+		<dependency>
+			<groupId>com.github.thenestruo</groupId>
+			<artifactId>thenestruo-commons</artifactId>
+		</dependency>
 
-    </dependencies>
+		<!-- JUnit -->
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter-engine</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter-params</artifactId>
+			<scope>test</scope>
+		</dependency>
 
-    <repositories>
+		<!-- (see: git-clone-mvn-install-zx0-java.bat) -->
+		<dependency>
+			<groupId>zx0</groupId>
+			<artifactId>zx0</artifactId>
+			<version>2.2</version>
+			<scope>test</scope>
+		</dependency>
 
-        <!-- Maven Central -->
-        <repository>
-            <id>central</id>
-            <url>https://repo1.maven.org/maven2</url>
-        </repository>
+	</dependencies>
 
-        <!-- GitHub Packages: github.com/theNestruo/thenestruo-parent-->
-        <repository>
-            <id>github-thenestruo-parent</id>
-            <url>https://maven.pkg.github.com/theNestruo/thenestruo-parent</url>
-        </repository>
+	<repositories>
 
-    </repositories>
+		<!-- Maven Central -->
+		<repository>
+			<id>central</id>
+			<url>https://repo1.maven.org/maven2</url>
+		</repository>
 
-    <build>
-        <finalName>${project.artifactId}</finalName>
-        <plugins>
+		<!-- GitHub Packages: github.com/theNestruo/thenestruo-parent-->
+		<repository>
+			<id>github-thenestruo-parent</id>
+			<url>https://maven.pkg.github.com/theNestruo/thenestruo-parent</url>
+		</repository>
 
-            <!-- Package the artifact in an uber-jar, including its dependencies -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>shade</id>
-                        <configuration>
-                            <createDependencyReducedPom>false</createDependencyReducedPom>
-                            <minimizeJar>true</minimizeJar>
-                            <filters>
-                                <filter>
-                                    <artifact>*:*</artifact>
-                                    <excludes>
-                                        <exclude>META-INF/MANIFEST.MF</exclude>
-                                        <exclude>META-INF/versions/9/module-info.class</exclude>
-                                        <exclude>module-info.class</exclude>
-                                    </excludes>
-                                </filter>
-                            </filters>
-                            <transformers>
-                                <!-- Prevents license duplication -->
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ApacheLicenseResourceTransformer" />
-                                <!-- Prepares merged NOTICE -->
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer">
-                                    <addHeader>false</addHeader>
-                                </transformer>
-                                <!-- Sets entries in the MANIFEST -->
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>${mainClass}</mainClass>
-                                </transformer>
-                                <!-- Relocated class names in META-INF/services resources and merges them -->
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-                            </transformers>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
+	</repositories>
 
-        </plugins>
-    </build>
+	<build>
+		<finalName>${project.artifactId}</finalName>
+		<plugins>
 
-    <profiles>
+			<!-- Package the artifact in an uber-jar, including its dependencies -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>shade</id>
+						<configuration>
+							<createDependencyReducedPom>false</createDependencyReducedPom>
+							<minimizeJar>true</minimizeJar>
+							<filters>
+								<filter>
+									<artifact>*:*</artifact>
+									<excludes>
+										<exclude>META-INF/MANIFEST.MF</exclude>
+										<exclude>
+											META-INF/versions/9/module-info.class</exclude>
+										<exclude>module-info.class</exclude>
+									</excludes>
+								</filter>
+							</filters>
+							<transformers>
+								<!-- Prevents license duplication -->
+								<transformer
+									implementation="org.apache.maven.plugins.shade.resource.ApacheLicenseResourceTransformer" />
+								<!-- Prepares merged NOTICE -->
+								<transformer
+									implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer">
+									<addHeader>false</addHeader>
+								</transformer>
+								<!-- Sets entries in the MANIFEST -->
+								<transformer
+									implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>${mainClass}</mainClass>
+								</transformer>
+								<!-- Relocated class names in META-INF/services
+								resources and merges them -->
+								<transformer
+									implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
+							</transformers>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 
-        <profile>
-            <id>local</id>
-            <build>
-                <plugins>
+		</plugins>
+	</build>
 
-                    <!-- Runs the application once to create AppCDS archive file -->
-                    <plugin>
-                        <groupId>org.codehaus.mojo</groupId>
-                        <artifactId>exec-maven-plugin</artifactId>
-                    </plugin>
+	<profiles>
 
-                </plugins>
-            </build>
-        </profile>
-    </profiles>
+		<profile>
+			<id>local</id>
+			<build>
+				<plugins>
+
+					<!-- Runs the application once to create AppCDS archive file -->
+					<plugin>
+						<groupId>org.codehaus.mojo</groupId>
+						<artifactId>exec-maven-plugin</artifactId>
+					</plugin>
+
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 
 </project>
