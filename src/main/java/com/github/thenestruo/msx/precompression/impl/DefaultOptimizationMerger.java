@@ -3,17 +3,58 @@ package com.github.thenestruo.msx.precompression.impl;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Deque;
 import java.util.List;
+import java.util.Objects;
 
 import org.apache.commons.collections4.CollectionUtils;
 
 import com.github.thenestruo.msx.precompression.OptimizationMerger;
 import com.github.thenestruo.msx.precompression.model.Optimization;
 
-public enum DefaultOptimizationMerger implements OptimizationMerger {
+public class DefaultOptimizationMerger implements OptimizationMerger {
 
-	INSTANCE;
+	/**
+	 * Comparator to choose amongst overlapped, non-mergeable optimizations:
+	 * prefers the larger optimization, or the one that covers more entropy
+	 * if both have the same size
+	 */
+	public static final Comparator<Optimization> SIZE_THEN_ENTROPY =
+			Comparator.comparingInt(Optimization::size)
+				.thenComparing(Comparator.comparingInt(Optimization::entropy));
+
+	/**
+	 * Comparator to choose amongst overlapped, non-mergeable optimizations:
+	 * prefers the optimization that covers more entropy, or the larger optimization
+	 * if both have the same size
+	 */
+	public static final Comparator<Optimization> ENTROPY_THEN_SIZE =
+			Comparator.comparingInt(Optimization::entropy)
+				.thenComparing(Comparator.comparingInt(Optimization::size));
+
+	/** The sensible default for the comparator to choose amongst overlapped, non-mergeable optimizations */
+	private static final Comparator<Optimization> DEFAULT_NON_MERGEABLE_COMPARATOR =
+			ENTROPY_THEN_SIZE;
+
+	/**
+	 * Default configuration instance,
+	 * with the default comparator to choose amongst overlapped, non-mergeable optimizations
+	 */
+	public static final DefaultOptimizationMerger INSTANCE = new DefaultOptimizationMerger(null);
+
+	//
+
+	/** The comparator to choose amongst overlapped, non-mergeable optimizations */
+	private Comparator<Optimization> nonMergeableComparator = DEFAULT_NON_MERGEABLE_COMPARATOR;
+
+	public DefaultOptimizationMerger(
+			final Comparator<Optimization> nonMergeableComparator) {
+		super();
+
+		this.nonMergeableComparator =
+				Objects.requireNonNullElse(nonMergeableComparator, DEFAULT_NON_MERGEABLE_COMPARATOR);
+	}
 
 	@Override
 	public List<Optimization> merge(
@@ -90,27 +131,13 @@ public enum DefaultOptimizationMerger implements OptimizationMerger {
 				continue;
 			}
 
-			// (overlapped, non-mergeable: keeps the larger optimization)
-			if (a.size() > b.size()) {
+			// (overlapped, non-mergeable)
+			if (this.nonMergeableComparator.compare(a, b) >= 0) {
 				mergedList.add(queueA.poll()); // (keeps)
 				queueB.poll(); // (discards)
-				continue;
-			}
-			if (b.size() > a.size()) {
-				mergedList.add(queueB.poll()); // (keeps)
-				queueA.poll(); // (discards)
-				continue;
-			}
-
-			// (overlapped, non-mergeable, same size: keeps the optimization that cover more entropy)
-			if (a.entropy() >= b.entropy()) {
-				mergedList.add(queueA.poll()); // (keeps)
-				queueB.poll(); // (discards)
-				continue;
 			} else {
 				mergedList.add(queueB.poll()); // (keeps)
 				queueA.poll(); // (discards)
-				continue;
 			}
 		}
 

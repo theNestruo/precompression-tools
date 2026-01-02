@@ -35,6 +35,37 @@ import com.github.thenestruo.util.ClassPathResource;
 
 public class MsxCharsetOptimizerTest {
 
+	private static final String[] FILENAMES = new String[] {
+			"ninjasenki.png",
+			"pyramidwarpex.png",
+			"stevedore.png",
+			"youkaiyashiki.png",
+			// "trucho-river.png",
+			// "trucho-reservoir.png",
+			// "trucho-pier.png",
+			// "trucho-beach.png"
+			// "roadster-forest.png",
+			// "roadster-night.png",
+			// "roadster-desert.png",
+		};
+
+	private static final MsxLineOptimizer[] PATTERN_OPTIMIZERS = new MsxLineOptimizer[] {
+			NullMsxLineOptimizer.INSTANCE,
+			PatternOnlyMsxLineOptimizer.INSTANCE,
+			PatternAndColorMsxLineOptimizer.INSTANCE };
+
+	private static final MsxLineOptimizer[] COLOR_OPTIMIZERS = new MsxLineOptimizer[] {
+			NullMsxLineOptimizer.INSTANCE,
+			ColorOnlyMsxLineOptimizer.INSTANCE,
+			ColorAndPatternMsxLineOptimizer.INSTANCE };
+
+	private static final OptimizationMerger[] OPTIMIZATION_MERGERS = new OptimizationMerger[] {
+			DefaultOptimizationMerger.INSTANCE,
+			PrioritizePatternOptimizationMerger.INSTANCE,
+			PrioritizeColorOptimizationMerger.INSTANCE };
+
+	//
+
 	private static final Map<String, Integer> referenceUncompressedTotalSizes = new LinkedHashMap<>();
 	private static final Map<String, Integer> referenceOptimizedZx0TotalSizes = new LinkedHashMap<>();
 	private static final Map<String, Integer> referenceZx0TotalSizes = new LinkedHashMap<>();
@@ -192,34 +223,10 @@ public class MsxCharsetOptimizerTest {
 
 		final List<Arguments> list = new ArrayList<>();
 
-		for (final String filename : new String[] {
-				"ninjasenki.png",
-				"pyramidwarpex.png",
-				"stevedore.png",
-				"youkaiyashiki.png",
-				// "trucho-river.png",
-				// "trucho-reservoir.png",
-				// "trucho-pier.png",
-				// "trucho-beach.png",
-				// "roadster-forest.png",
-				// "roadster-night.png",
-				// "roadster-desert.png"
-			}) {
-
-			for (final MsxLineOptimizer patternOptimizer : new MsxLineOptimizer[] {
-					NullMsxLineOptimizer.INSTANCE,
-					PatternOnlyMsxLineOptimizer.INSTANCE,
-					PatternAndColorMsxLineOptimizer.INSTANCE }) {
-
-				for (final MsxLineOptimizer colorOptimizer : new MsxLineOptimizer[] {
-						NullMsxLineOptimizer.INSTANCE,
-						ColorOnlyMsxLineOptimizer.INSTANCE,
-						ColorAndPatternMsxLineOptimizer.INSTANCE }) {
-
-					for (final OptimizationMerger merger : new OptimizationMerger[] {
-							DefaultOptimizationMerger.INSTANCE,
-							PrioritizePatternOptimizationMerger.INSTANCE,
-							PrioritizeColorOptimizationMerger.INSTANCE }) {
+		for (final String filename : FILENAMES) {
+			for (final MsxLineOptimizer patternOptimizer : PATTERN_OPTIMIZERS) {
+				for (final MsxLineOptimizer colorOptimizer : COLOR_OPTIMIZERS) {
+					for (final OptimizationMerger merger : OPTIMIZATION_MERGERS) {
 
 						final String label = String.format(
 								"%s + %s (%s)",
