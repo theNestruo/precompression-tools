@@ -70,6 +70,12 @@ public class MsxCharsetOptimizerImpl implements MsxCharsetOptimizer {
 	}
 
 	@Override
+	public MsxCharsetOptimizer setExclusion(final NumberRange<Integer> exclusion) {
+		this.exclusion = exclusion;
+		return this;
+	}
+
+	@Override
 	public MsxCharset optimize(final MsxCharset charset) {
 
 		// (creates a mutable instance)

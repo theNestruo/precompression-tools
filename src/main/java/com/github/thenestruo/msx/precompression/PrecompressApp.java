@@ -4,18 +4,12 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.util.List;
+import java.util.concurrent.Callable;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.MissingOptionException;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
-import org.apache.commons.cli.help.HelpFormatter;
 import org.apache.commons.io.file.PathUtils;
+import org.apache.commons.lang3.NumberRange;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Strings;
-import org.apache.commons.lang3.tuple.Pair;
 import org.tinylog.Logger;
 import org.tinylog.configuration.Configuration;
 
@@ -30,203 +24,201 @@ import com.github.thenestruo.msx.precompression.impl.PrioritizeColorOptimization
 import com.github.thenestruo.msx.precompression.impl.PrioritizePatternOptimizationMerger;
 import com.github.thenestruo.msx.precompression.model.MsxCharset;
 
-public class PrecompressApp {
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.ITypeConverter;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Parameters;
 
-	private static final String HELP = "help";
-	private static final String VERBOSE = "verbose";
-	private static final String PATTERN_NO = "no-pattern";
-	private static final String PATTERN_YES = "pattern";
-	private static final String PATTERN_AND_COLOR = "pattern-and-color";
-	private static final String COLOR_NO = "no-color";
-	private static final String COLOR_YES = "color";
-	private static final String COLOR_AND_PATTERN = "color-and-pattern";
-	private static final String PRIORITIZE_BALANCED = "no-prioritize";
-	private static final String PRIORITIZE_PATTERN = "prioritize-pattern";
-	private static final String PRIORITIZE_COLOR = "prioritize-color";
-	private static final String EXCLUDE = "exclude";
+@Command(name = "precompression", sortOptions = false)
+public class PrecompressApp implements Callable<Integer> {
 
-	public static void main(final String[] args) throws ParseException, IOException {
-
-		// Parses the command line
-		final Options options = options();
-		final CommandLine command;
-		try {
-			command = new DefaultParser().parse(options, args);
-		} catch (final MissingOptionException e) {
-			showUsage(options);
-			return;
-		}
-
-		// (before using tinylog)
-		setVerbose(command);
-
-		// Main options
-		if (showUsage(command, options)) {
-			return;
-		}
-
-		// Reads the binary files
-		final Pair<Path, byte[]> chrPair = readChrtblBinary(command);
-		final Path chrInputPath = chrPair.getLeft();
-		if (chrInputPath == null) {
-			return;
-		}
-
-		final Pair<Path, byte[]> clrPair = readClrtblBinary(command, chrInputPath);
-		final Path clrInputPath = clrPair.getLeft();
-		if (clrInputPath == null) {
-			return;
-		}
-
-		final long chrSize = Files.size(chrInputPath);
-		final long clrSize = Files.size(clrInputPath);
-		Logger.debug("Binary files read: {} bytes, {} bytes", chrSize, clrSize);
-		if ((chrSize == 0) || (clrSize == 0) || (chrSize != clrSize)) {
-			return;
-		}
-
-		final MsxCharset optimizedCharset = buildMsxCharsetOptimizer(command)
-				.optimize(new MsxCharset(chrPair.getRight(), clrPair.getRight()));
-
-		// Writes the optimized file
-		final Path chrOutputPath = chrInputPath.resolveSibling(String.format("%s.opt", chrInputPath.getFileName()));
-		final Path clrOutputPath = clrInputPath.resolveSibling(String.format("%s.opt", clrInputPath.getFileName()));
-		Logger.debug("Binary files to be written: {}, {}", chrOutputPath, clrOutputPath);
-
-		Files.write(chrOutputPath, optimizedCharset.chrtbl(), StandardOpenOption.CREATE);
-		Files.write(clrOutputPath, optimizedCharset.clrtbl(), StandardOpenOption.CREATE);
-		Logger.debug("Binary files {}, {} written", chrOutputPath, clrOutputPath);
+	public static void main(final String... args) {
+		new CommandLine(new PrecompressApp()).execute(args);
 	}
 
-	private static Options options() {
+	@Option(names = { "-h", "--help" }, usageHelp = true, description = "shows usage")
+	private boolean help;
 
-		final Options options = new Options();
-		options.addOption(HELP, "Shows usage");
-		options.addOption(VERBOSE, "Verbose execution");
-		options.addOption(EXCLUDE, true, "Excluded range of addresses: <from>..<to>");
-		options.addOption(PATTERN_NO, "Do not use pattern optimizations (default)");
-		options.addOption(PATTERN_YES, "Use basic pattern optimizations");
-		options.addOption(PATTERN_AND_COLOR, "Use pattern optimizations with color changes");
-		options.addOption(COLOR_NO, "Do not use color optimizations");
-		options.addOption(COLOR_YES, "Use basic color optimizations");
-		options.addOption(COLOR_AND_PATTERN, "Use color optimizations with pattern changes (default)");
-		options.addOption(PRIORITIZE_BALANCED, "Merge optimizations without prioritization");
-		options.addOption(PRIORITIZE_PATTERN, "Prioritize pattern optimizations");
-		options.addOption(PRIORITIZE_COLOR, "Prioritize color optimizations (default)");
-		return options;
-	}
+	@Option(names = { "-v", "--verbose" }, description = "verbose execution")
+	private boolean verbose;
 
-	private static boolean showUsage(final CommandLine command, final Options options) throws IOException {
+	@Parameters(index = "0", arity = "1", paramLabel = "chrtbl", description = "binary input file(s): CHRTBL")
+	private Path chrtblInputPath;
 
-		return command.hasOption(HELP) && showUsage(options);
-	}
+	@Parameters(index = "1", arity = "0..1", paramLabel = "clrtbl", description = "binary input file(s): CLRTBL")
+	private Path clrtblInputPath;
 
-	private static boolean showUsage(final Options options) throws IOException {
+	@Option(names = { "-e",
+			"--exclude" }, converter = ExclusionTypeConverter.class, description = "Excluded range of addresses: <from>..<to>")
+	private NumberRange<Integer> exclusionRange;
 
-		// (prints in proper order)
-		HelpFormatter.builder().setShowSince(false).get().printHelp(
-				"java -jar precompression.jar <input1> <input2>",
-				"with:"
-					+ "\n<input1>  Binary input file (CHRTBL)"
-					+ "\n<input2>  Binary input file (CLRTBL)",
-				options.getOptions(),
-				null,
-				true);
+	private static class ExclusionTypeConverter implements ITypeConverter<NumberRange<Integer>> {
 
-		return true;
-	}
+		@Override
+		public NumberRange<Integer> convert(final String value) throws Exception {
 
-	private static boolean setVerbose(final CommandLine command) {
+			final String[] values = StringUtils.splitByWholeSeparator(value, "..");
+			if (values.length != 2) {
+				return null;
+			}
+			try {
+				final int from = Integer.decode(values[0]);
+				final int to = Integer.decode(values[1]);
+				return new NumberRange<Integer>(from, to + 1, null);
 
-		if (!command.hasOption(VERBOSE)) {
-			return false;
-		}
-
-		Configuration.set("writer.level", "debug");
-		return true;
-	}
-
-	private static Pair<Path, byte[]> readChrtblBinary(final CommandLine command) throws IOException {
-
-		return readBinary(command, null);
-	}
-
-	private static Pair<Path, byte[]> readClrtblBinary(final CommandLine command, final Path chrtblPath)
-			throws IOException {
-
-		final String defaultClrtblPathValue = Strings.CI.equals(PathUtils.getExtension(chrtblPath), "chr")
-				? String.format("%s.clr", PathUtils.getBaseName(chrtblPath))
-				: null;
-		return readBinary(command, defaultClrtblPathValue);
-	}
-
-	private static Pair<Path, byte[]> readBinary(final CommandLine command, final String defaultNextPathValue)
-			throws IOException {
-
-		final String path = nextPath(command, defaultNextPathValue);
-		if (path == null) {
-			return Pair.of(null, null);
-		}
-		final Path file = Path.of(path);
-		if (!Files.exists(file)) {
-			Logger.warn("Binary input file {} does not exist", file.toAbsolutePath());
-			return Pair.of(null, null);
-		}
-
-		Logger.debug("Binary input file {} will be read", file.toAbsolutePath());
-		return Pair.of(file, Files.readAllBytes(file));
-	}
-
-	private static String nextPath(final CommandLine command, final String defaultValue) {
-
-		final List<String> argList = command.getArgList();
-		return argList.isEmpty() ? defaultValue : argList.remove(0);
-	}
-
-	private static MsxCharsetOptimizer buildMsxCharsetOptimizer(final CommandLine command) {
-
-		final MsxCharsetOptimizer optimizer = new MsxCharsetOptimizerImpl();
-
-		if (command.hasOption(PATTERN_NO)) {
-			optimizer.setPatternOptimizer(NullMsxLineOptimizer.INSTANCE);
-		} else if (command.hasOption(PATTERN_YES)) {
-			optimizer.setPatternOptimizer(PatternOnlyMsxLineOptimizer.INSTANCE);
-		} else if (command.hasOption(PATTERN_AND_COLOR)) {
-			optimizer.setPatternOptimizer(PatternAndColorMsxLineOptimizer.INSTANCE);
-		}
-
-		if (command.hasOption(COLOR_NO)) {
-			optimizer.setColorOptimizer(NullMsxLineOptimizer.INSTANCE);
-		} else if (command.hasOption(COLOR_YES)) {
-			optimizer.setColorOptimizer(ColorOnlyMsxLineOptimizer.INSTANCE);
-		} else if (command.hasOption(COLOR_AND_PATTERN)) {
-			optimizer.setColorOptimizer(ColorAndPatternMsxLineOptimizer.INSTANCE);
-		}
-
-		if (command.hasOption(PRIORITIZE_BALANCED)) {
-			optimizer.setMerger(DefaultOptimizationMerger.INSTANCE);
-		} else if (command.hasOption(PRIORITIZE_PATTERN)) {
-			optimizer.setMerger(PrioritizePatternOptimizationMerger.INSTANCE);
-		} else if (command.hasOption(PRIORITIZE_COLOR)) {
-			optimizer.setMerger(PrioritizeColorOptimizationMerger.INSTANCE);
-		}
-
-		if (command.hasOption(EXCLUDE)) {
-			final String optionValue = command.getOptionValue(EXCLUDE);
-			final String[] values = StringUtils.splitByWholeSeparator(optionValue, "..");
-			if (values.length == 2) {
-				try {
-					final int from = Integer.decode(values[0]);
-					final int to = Integer.decode(values[1]);
-					if ((from >= 0) && (to >= from)) {
-						optimizer.setExclusion(from, to);
-					}
-
-				} catch (final NumberFormatException e) {
-					return optimizer;
-				}
+			} catch (final NumberFormatException e) {
+				return null;
 			}
 		}
-		return optimizer;
+	}
+
+	@Option(names = { "-p",
+			"--pattern" }, converter = PatternMsxLineOptimizerTypeConverter.class, description = "Pattern optimizations: no (default), pattern, patternAndColor", defaultValue = "no")
+	private MsxLineOptimizer patternOptimizer;
+
+	private static class PatternMsxLineOptimizerTypeConverter implements ITypeConverter<MsxLineOptimizer> {
+
+		@Override
+		public MsxLineOptimizer convert(final String value) throws Exception {
+			switch (value) {
+				case "pattern":
+					return PatternOnlyMsxLineOptimizer.INSTANCE;
+				case "patternAndColor":
+					return PatternAndColorMsxLineOptimizer.INSTANCE;
+				case "no":
+				default:
+					return NullMsxLineOptimizer.INSTANCE;
+			}
+		}
+	}
+
+	@Option(names = { "-c",
+			"--color" }, converter = ColorMsxLineOptimizerTypeConverter.class, description = "Color optimizations: no, color, colorAndPattern (default)", defaultValue = "colorAndPattern")
+	private MsxLineOptimizer colorOptimizer;
+
+	private static class ColorMsxLineOptimizerTypeConverter implements ITypeConverter<MsxLineOptimizer> {
+
+		@Override
+		public MsxLineOptimizer convert(final String value) throws Exception {
+			switch (value) {
+				case "color":
+					return ColorOnlyMsxLineOptimizer.INSTANCE;
+				case "colorAndPattern":
+					return ColorAndPatternMsxLineOptimizer.INSTANCE;
+				case "no":
+				default:
+					return NullMsxLineOptimizer.INSTANCE;
+			}
+		}
+	}
+
+	@Option(names = { "-m",
+			"--merger" }, converter = OptimizationMergerTypeConverter.class, description = "Merge optimizations: prioritizePattern, prioritizeColor, default (default)", defaultValue = "default")
+	private OptimizationMerger optimizationMerger;
+
+	private static class OptimizationMergerTypeConverter implements ITypeConverter<OptimizationMerger> {
+
+		@Override
+		public OptimizationMerger convert(final String value) throws Exception {
+			switch (value) {
+				case "prioritizePattern":
+					return PrioritizePatternOptimizationMerger.INSTANCE;
+				case "prioritizeColor":
+					return PrioritizeColorOptimizationMerger.INSTANCE;
+				case "default":
+				default:
+					return DefaultOptimizationMerger.INSTANCE;
+			}
+		}
+	}
+
+	@Override
+	public Integer call() throws IOException {
+
+		// (before using tinylog)
+		this.handleVerbose();
+
+		// Reads the binary files
+		final byte[] chrtblBytes = this.readBinary(this.chrtblInputPath);
+		if (chrtblBytes == null) {
+			return 10;
+		}
+
+		final byte[] clrtblBytes = this.readBinary(this.clrtblInputPath());
+		if (clrtblBytes == null) {
+			return 20;
+		}
+
+		final long chrSize = chrtblBytes.length;
+		final long clrSize = clrtblBytes.length;
+		Logger.debug("Binary files read: {} bytes, {} bytes", chrSize, clrSize);
+		if ((chrSize == 0) || (clrSize == 0) || (chrSize != clrSize)) {
+			return 30;
+		}
+
+		final MsxCharset optimizedCharset = new MsxCharsetOptimizerImpl()
+				.setPatternOptimizer(this.patternOptimizer)
+				.setColorOptimizer(this.colorOptimizer)
+				.setMerger(this.optimizationMerger)
+				.setExclusion(this.exclusionRange)
+				.optimize(new MsxCharset(chrtblBytes, clrtblBytes));
+
+		// Writes the optimized file
+		Logger.debug("Binary files to be written: {}, {}", this.chrtblOutputPath(), this.clrtblOutputPath());
+		Files.write(this.chrtblOutputPath(), optimizedCharset.chrtbl(), StandardOpenOption.CREATE);
+		Files.write(this.clrtblOutputPath(), optimizedCharset.clrtbl(), StandardOpenOption.CREATE);
+		Logger.debug("Binary files {}, {} written", this.chrtblOutputPath(), this.clrtblOutputPath());
+
+		return 0;
+	}
+
+	private void handleVerbose() {
+
+		if (this.verbose) {
+			Configuration.set("writer.level", "debug");
+		}
+	}
+
+	private Path clrtblInputPath() {
+
+		if (this.clrtblInputPath != null) {
+			return this.clrtblInputPath;
+		}
+
+		if (Strings.CI.equals(PathUtils.getExtension(this.chrtblInputPath), "chr")) {
+			return this.chrtblInputPath.resolveSibling(
+					String.format("%s.clr", PathUtils.getBaseName(this.chrtblInputPath)));
+		}
+
+		return null;
+	}
+
+	private Path chrtblOutputPath() {
+
+		return this.chrtblInputPath.resolveSibling(
+				String.format("%s.opt", this.chrtblInputPath.getFileName()));
+	}
+
+	private Path clrtblOutputPath() {
+
+		return this.clrtblInputPath().resolveSibling(
+				String.format("%s.opt", this.clrtblInputPath().getFileName()));
+	}
+
+	private byte[] readBinary(final Path path) throws IOException {
+
+		// (sanity check)
+		if (path == null) {
+			return null;
+		}
+
+		if (!Files.exists(path)) {
+			Logger.warn("Binary input file {} does not exist", path);
+			return null;
+		}
+
+		Logger.debug("Binary input file {} will be read", path);
+		return Files.readAllBytes(path);
 	}
 }

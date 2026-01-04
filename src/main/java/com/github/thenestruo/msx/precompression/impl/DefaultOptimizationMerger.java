@@ -2,18 +2,14 @@ package com.github.thenestruo.msx.precompression.impl;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.List;
 import java.util.Objects;
 
-import org.apache.commons.collections4.CollectionUtils;
-
-import com.github.thenestruo.msx.precompression.OptimizationMerger;
 import com.github.thenestruo.msx.precompression.model.Optimization;
 
-public class DefaultOptimizationMerger implements OptimizationMerger {
+public class DefaultOptimizationMerger extends AbstractOptimizationMerger {
 
 	/**
 	 * Comparator to choose amongst overlapped, non-mergeable optimizations:
@@ -57,18 +53,8 @@ public class DefaultOptimizationMerger implements OptimizationMerger {
 	}
 
 	@Override
-	public List<Optimization> merge(
+	protected List<Optimization> doMerge(
 			final List<Optimization> forwardList, final List<Optimization> backwardsList) {
-
-		// (sanity checks)
-		if (CollectionUtils.isEmpty(forwardList)) {
-			return CollectionUtils.isEmpty(backwardsList)
-					? Collections.emptyList()
-					: backwardsList;
-		}
-		if (CollectionUtils.isEmpty(backwardsList)) {
-			return forwardList;
-		}
 
 		final List<Optimization> mergedList = new ArrayList<>();
 
@@ -141,8 +127,6 @@ public class DefaultOptimizationMerger implements OptimizationMerger {
 			}
 		}
 
-		// Ensures proper order
-		Collections.sort(mergedList, Optimization.MINIMUM_COMPARATOR);
 		return mergedList;
 	}
 

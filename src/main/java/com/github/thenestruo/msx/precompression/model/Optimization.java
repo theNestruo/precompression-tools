@@ -1,12 +1,12 @@
 package com.github.thenestruo.msx.precompression.model;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.NumberRange;
 import org.tinylog.Logger;
 
@@ -81,7 +81,8 @@ public class Optimization extends NumberRange<Integer> {
 				? this.charset.chrtbl()
 				: this.charset.clrtbl();
 
-		return ByteArrayUtils.entropy(ArrayUtils.subarray(array, this.getMinimum(), this.getMaximum() + 1));
+		return ByteArrayUtils.entropy(
+				Arrays.copyOfRange(array, this.getMinimum(), this.getMaximum() + 1));
 	}
 
 	/**

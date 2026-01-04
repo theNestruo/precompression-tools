@@ -1,32 +1,22 @@
 package com.github.thenestruo.msx.precompression.impl;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
-import org.apache.commons.collections4.CollectionUtils;
-
-import com.github.thenestruo.msx.precompression.OptimizationMerger;
 import com.github.thenestruo.msx.precompression.model.Optimization;
 
-public enum PrioritizeColorOptimizationMerger implements OptimizationMerger {
+public class PrioritizeColorOptimizationMerger extends AbstractOptimizationMerger {
 
-	INSTANCE;
+	public static final PrioritizeColorOptimizationMerger INSTANCE = new PrioritizeColorOptimizationMerger();
+
+	private PrioritizeColorOptimizationMerger() {
+		super();
+	}
 
 	@Override
-	public List<Optimization> merge(
+	public List<Optimization> doMerge(
 			final List<Optimization> patternList, final List<Optimization> colorList) {
-
-		// (sanity checks)
-		if (CollectionUtils.isEmpty(patternList)) {
-			return CollectionUtils.isEmpty(colorList)
-					? Collections.emptyList()
-					: colorList;
-		}
-		if (CollectionUtils.isEmpty(colorList)) {
-			return patternList;
-		}
 
 		// Pattern optimizations not overlapped by any color optimization
 		final List<Optimization> mergedList = new ArrayList<>(patternList);
@@ -43,8 +33,6 @@ public enum PrioritizeColorOptimizationMerger implements OptimizationMerger {
 		// All color optimizations
 		mergedList.addAll(colorList);
 
-		// Ensures proper order
-		Collections.sort(mergedList, Optimization.MINIMUM_COMPARATOR);
 		return mergedList;
 	}
 

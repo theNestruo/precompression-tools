@@ -1,6 +1,6 @@
 package com.github.thenestruo.msx.precompression.model;
 
-import org.apache.commons.lang3.ArrayUtils;
+import java.util.Objects;
 
 public class MsxCharset {
 
@@ -12,8 +12,8 @@ public class MsxCharset {
 	}
 
 	public MsxCharset(final byte[] chrtbl, final byte[] clrtbl) {
-		this.chrtbl = ArrayUtils.clone(chrtbl);
-		this.clrtbl = ArrayUtils.clone(clrtbl);
+		this.chrtbl = Objects.requireNonNull(chrtbl).clone();
+		this.clrtbl = Objects.requireNonNull(clrtbl).clone();
 	}
 
 	public byte[] chrtbl() {
