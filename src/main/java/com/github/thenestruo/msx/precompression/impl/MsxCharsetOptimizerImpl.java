@@ -6,9 +6,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-import org.apache.commons.lang3.NumberRange;
 import org.tinylog.Logger;
 
+import com.github.thenestruo.commons.math.Range;
 import com.github.thenestruo.msx.precompression.MsxCharsetOptimizer;
 import com.github.thenestruo.msx.precompression.MsxLineOptimizer;
 import com.github.thenestruo.msx.precompression.OptimizationMerger;
@@ -41,7 +41,7 @@ public class MsxCharsetOptimizerImpl implements MsxCharsetOptimizer {
 	/** The optimization merger */
 	private OptimizationMerger merger = DEFAULT_MERGER;
 
-	private NumberRange<Integer> exclusion = null;
+	private Range<Integer> exclusion = null;
 
 	//
 
@@ -65,12 +65,11 @@ public class MsxCharsetOptimizerImpl implements MsxCharsetOptimizer {
 
 	@Override
 	public MsxCharsetOptimizer setExclusion(final int from, final int to) {
-		this.exclusion = new NumberRange<>(from, to, null);
-		return this;
+		return this.setExclusion(new Range<>(from, to));
 	}
 
 	@Override
-	public MsxCharsetOptimizer setExclusion(final NumberRange<Integer> exclusion) {
+	public MsxCharsetOptimizer setExclusion(final Range<Integer> exclusion) {
 		this.exclusion = exclusion;
 		return this;
 	}

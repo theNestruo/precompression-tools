@@ -1,4 +1,10 @@
+# Maven
 target
+
+# Eclipse
+.classpath
+.project
+.settings
 
 lib
 !lib/git-clone-mvn-install-zx0-java.bat

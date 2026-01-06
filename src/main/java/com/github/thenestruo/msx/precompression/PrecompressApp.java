@@ -6,13 +6,11 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.concurrent.Callable;
 
-import org.apache.commons.io.file.PathUtils;
-import org.apache.commons.lang3.NumberRange;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.Strings;
 import org.tinylog.Logger;
 import org.tinylog.configuration.Configuration;
 
+import com.github.thenestruo.commons.io.Paths;
+import com.github.thenestruo.commons.math.Range;
 import com.github.thenestruo.msx.precompression.impl.ColorAndPatternMsxLineOptimizer;
 import com.github.thenestruo.msx.precompression.impl.ColorOnlyMsxLineOptimizer;
 import com.github.thenestruo.msx.precompression.impl.DefaultOptimizationMerger;
@@ -30,7 +28,7 @@ import picocli.CommandLine.ITypeConverter;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
-@Command(name = "precompression", sortOptions = false)
+@Command(name = "precompress", sortOptions = false)
 public class PrecompressApp implements Callable<Integer> {
 
 	public static void main(final String... args) {
@@ -49,23 +47,24 @@ public class PrecompressApp implements Callable<Integer> {
 	@Parameters(index = "1", arity = "0..1", paramLabel = "clrtbl", description = "binary input file(s): CLRTBL")
 	private Path clrtblInputPath;
 
-	@Option(names = { "-e",
-			"--exclude" }, converter = ExclusionTypeConverter.class, description = "Excluded range of addresses: <from>..<to>")
-	private NumberRange<Integer> exclusionRange;
+	@Option(names = { "-e", "--exclude" },
+			converter = ExclusionTypeConverter.class,
+			description = "Excluded range of addresses: <from>..<to>")
+	private Range<Integer> exclusionRange;
 
-	private static class ExclusionTypeConverter implements ITypeConverter<NumberRange<Integer>> {
+	private static class ExclusionTypeConverter implements ITypeConverter<Range<Integer>> {
 
 		@Override
-		public NumberRange<Integer> convert(final String value) throws Exception {
+		public Range<Integer> convert(final String value) throws Exception {
 
-			final String[] values = StringUtils.splitByWholeSeparator(value, "..");
+			final String[] values = value.split("\\.{2}");
 			if (values.length != 2) {
 				return null;
 			}
 			try {
 				final int from = Integer.decode(values[0]);
 				final int to = Integer.decode(values[1]);
-				return new NumberRange<Integer>(from, to + 1, null);
+				return new Range<>(from, to);
 
 			} catch (final NumberFormatException e) {
 				return null;
@@ -73,8 +72,10 @@ public class PrecompressApp implements Callable<Integer> {
 		}
 	}
 
-	@Option(names = { "-p",
-			"--pattern" }, converter = PatternMsxLineOptimizerTypeConverter.class, description = "Pattern optimizations: no (default), pattern, patternAndColor", defaultValue = "no")
+	@Option(names = { "-p", "--pattern" },
+			converter = PatternMsxLineOptimizerTypeConverter.class,
+			description = "Pattern optimizations: no (default), pattern, patternAndColor",
+			defaultValue = "no")
 	private MsxLineOptimizer patternOptimizer;
 
 	private static class PatternMsxLineOptimizerTypeConverter implements ITypeConverter<MsxLineOptimizer> {
@@ -82,19 +83,21 @@ public class PrecompressApp implements Callable<Integer> {
 		@Override
 		public MsxLineOptimizer convert(final String value) throws Exception {
 			switch (value) {
-				case "pattern":
-					return PatternOnlyMsxLineOptimizer.INSTANCE;
-				case "patternAndColor":
-					return PatternAndColorMsxLineOptimizer.INSTANCE;
-				case "no":
-				default:
-					return NullMsxLineOptimizer.INSTANCE;
+			case "pattern":
+				return PatternOnlyMsxLineOptimizer.INSTANCE;
+			case "patternAndColor":
+				return PatternAndColorMsxLineOptimizer.INSTANCE;
+			case "no":
+			default:
+				return NullMsxLineOptimizer.INSTANCE;
 			}
 		}
 	}
 
-	@Option(names = { "-c",
-			"--color" }, converter = ColorMsxLineOptimizerTypeConverter.class, description = "Color optimizations: no, color, colorAndPattern (default)", defaultValue = "colorAndPattern")
+	@Option(names = { "-c", "--color" },
+			converter = ColorMsxLineOptimizerTypeConverter.class,
+			description = "Color optimizations: no, color, colorAndPattern (default)",
+			defaultValue = "colorAndPattern")
 	private MsxLineOptimizer colorOptimizer;
 
 	private static class ColorMsxLineOptimizerTypeConverter implements ITypeConverter<MsxLineOptimizer> {
@@ -102,19 +105,21 @@ public class PrecompressApp implements Callable<Integer> {
 		@Override
 		public MsxLineOptimizer convert(final String value) throws Exception {
 			switch (value) {
-				case "color":
-					return ColorOnlyMsxLineOptimizer.INSTANCE;
-				case "colorAndPattern":
-					return ColorAndPatternMsxLineOptimizer.INSTANCE;
-				case "no":
-				default:
-					return NullMsxLineOptimizer.INSTANCE;
+			case "color":
+				return ColorOnlyMsxLineOptimizer.INSTANCE;
+			case "colorAndPattern":
+				return ColorAndPatternMsxLineOptimizer.INSTANCE;
+			case "no":
+			default:
+				return NullMsxLineOptimizer.INSTANCE;
 			}
 		}
 	}
 
-	@Option(names = { "-m",
-			"--merger" }, converter = OptimizationMergerTypeConverter.class, description = "Merge optimizations: prioritizePattern, prioritizeColor, default (default)", defaultValue = "default")
+	@Option(names = { "-m", "--merger" },
+			converter = OptimizationMergerTypeConverter.class,
+			description = "Merge optimizations: prioritizePattern, prioritizeColor, default (default)",
+			defaultValue = "default")
 	private OptimizationMerger optimizationMerger;
 
 	private static class OptimizationMergerTypeConverter implements ITypeConverter<OptimizationMerger> {
@@ -122,13 +127,13 @@ public class PrecompressApp implements Callable<Integer> {
 		@Override
 		public OptimizationMerger convert(final String value) throws Exception {
 			switch (value) {
-				case "prioritizePattern":
-					return PrioritizePatternOptimizationMerger.INSTANCE;
-				case "prioritizeColor":
-					return PrioritizeColorOptimizationMerger.INSTANCE;
-				case "default":
-				default:
-					return DefaultOptimizationMerger.INSTANCE;
+			case "prioritizePattern":
+				return PrioritizePatternOptimizationMerger.INSTANCE;
+			case "prioritizeColor":
+				return PrioritizeColorOptimizationMerger.INSTANCE;
+			case "default":
+			default:
+				return DefaultOptimizationMerger.INSTANCE;
 			}
 		}
 	}
@@ -157,12 +162,9 @@ public class PrecompressApp implements Callable<Integer> {
 			return 30;
 		}
 
-		final MsxCharset optimizedCharset = new MsxCharsetOptimizerImpl()
-				.setPatternOptimizer(this.patternOptimizer)
-				.setColorOptimizer(this.colorOptimizer)
-				.setMerger(this.optimizationMerger)
-				.setExclusion(this.exclusionRange)
-				.optimize(new MsxCharset(chrtblBytes, clrtblBytes));
+		final MsxCharset optimizedCharset = new MsxCharsetOptimizerImpl().setPatternOptimizer(this.patternOptimizer)
+				.setColorOptimizer(this.colorOptimizer).setMerger(this.optimizationMerger)
+				.setExclusion(this.exclusionRange).optimize(new MsxCharset(chrtblBytes, clrtblBytes));
 
 		// Writes the optimized file
 		Logger.debug("Binary files to be written: {}, {}", this.chrtblOutputPath(), this.clrtblOutputPath());
@@ -186,9 +188,8 @@ public class PrecompressApp implements Callable<Integer> {
 			return this.clrtblInputPath;
 		}
 
-		if (Strings.CI.equals(PathUtils.getExtension(this.chrtblInputPath), "chr")) {
-			return this.chrtblInputPath.resolveSibling(
-					String.format("%s.clr", PathUtils.getBaseName(this.chrtblInputPath)));
+		if (Paths.endsWith(this.chrtblInputPath, ".chr")) {
+			return Paths.append(Paths.removeEnd(this.chrtblInputPath, ".chr"), ".clr");
 		}
 
 		return null;
@@ -196,14 +197,12 @@ public class PrecompressApp implements Callable<Integer> {
 
 	private Path chrtblOutputPath() {
 
-		return this.chrtblInputPath.resolveSibling(
-				String.format("%s.opt", this.chrtblInputPath.getFileName()));
+		return this.chrtblInputPath.resolveSibling(String.format("%s.opt", this.chrtblInputPath.getFileName()));
 	}
 
 	private Path clrtblOutputPath() {
 
-		return this.clrtblInputPath().resolveSibling(
-				String.format("%s.opt", this.clrtblInputPath().getFileName()));
+		return this.clrtblInputPath().resolveSibling(String.format("%s.opt", this.clrtblInputPath().getFileName()));
 	}
 
 	private byte[] readBinary(final Path path) throws IOException {

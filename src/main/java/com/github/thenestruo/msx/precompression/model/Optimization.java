@@ -7,18 +7,16 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-import org.apache.commons.lang3.NumberRange;
 import org.tinylog.Logger;
 
+import com.github.thenestruo.commons.ByteArrays;
+import com.github.thenestruo.commons.math.Range;
 import com.github.thenestruo.msx.precompression.MsxLineOptimizer;
-import com.github.thenestruo.util.ByteArrayUtils;
 
-public class Optimization extends NumberRange<Integer> {
+public class Optimization extends Range<Integer> {
 
-	private static final long serialVersionUID = 3964436030844404674L;
-
-	public static final Comparator<NumberRange<Integer>> MINIMUM_COMPARATOR =
-			Comparator.<NumberRange<Integer>> comparingInt(NumberRange<Integer>::getMinimum);
+	public static final Comparator<Range<Integer>> MINIMUM_COMPARATOR = Comparator
+			.<Range<Integer>>comparingInt(Range<Integer>::getMinimum);
 
 	/** The MSX charset (for {@link #entropy()}) */
 	private final MsxCharset charset;
@@ -31,7 +29,7 @@ public class Optimization extends NumberRange<Integer> {
 
 	public Optimization(final MsxCharset charset,
 			final MsxLineOptimizer optimizer, final MsxLine sample, final int from, final int to) {
-		super(from, to, null);
+		super(from, to);
 
 		this.charset = charset;
 		this.optimizer = optimizer;
@@ -46,10 +44,10 @@ public class Optimization extends NumberRange<Integer> {
 	/**
 	 * @param exclusion the exclusion to remove from this optimization
 	 * @return the optimization result of removing the exclusion from this optimization:
-	 * either this optimization, this optimization but shortened,
-	 * or two optimizations (if the exclusion is contained within this optimization)
+	 *         either this optimization, this optimization but shortened,
+	 *         or two optimizations (if the exclusion is contained within this optimization)
 	 */
-	public Collection<? extends Optimization> minus(final NumberRange<Integer> exclusion) {
+	public Collection<? extends Optimization> minus(final Range<Integer> exclusion) {
 
 		if (!this.isOverlappedBy(exclusion)) {
 			return Collections.singletonList(this);
@@ -57,10 +55,12 @@ public class Optimization extends NumberRange<Integer> {
 
 		final List<Optimization> list = new ArrayList<>();
 		if (exclusion.getMinimum() > this.getMinimum()) {
-			list.add(new Optimization(this.charset, this.optimizer, this.sample, this.getMinimum(), exclusion.getMinimum() - 1));
+			list.add(new Optimization(this.charset, this.optimizer, this.sample, this.getMinimum(),
+					exclusion.getMinimum() - 1));
 		}
 		if (exclusion.getMaximum() < this.getMaximum()) {
-			list.add(new Optimization(this.charset, this.optimizer, this.sample, exclusion.getMaximum() + 1, this.getMaximum()));
+			list.add(new Optimization(this.charset, this.optimizer, this.sample, exclusion.getMaximum() + 1,
+					this.getMaximum()));
 		}
 		return list;
 	}
@@ -81,14 +81,14 @@ public class Optimization extends NumberRange<Integer> {
 				? this.charset.chrtbl()
 				: this.charset.clrtbl();
 
-		return ByteArrayUtils.entropy(
+		return ByteArrays.entropy(
 				Arrays.copyOfRange(array, this.getMinimum(), this.getMaximum() + 1));
 	}
 
 	/**
 	 * @param that the other optimization
 	 * @return {@code true} if both optimizations are of the same type and have a compatible sample value,
-	 * {@code false} otherwise
+	 *         {@code false} otherwise
 	 */
 	public boolean isMergeableWith(final Optimization that) {
 
@@ -114,7 +114,7 @@ public class Optimization extends NumberRange<Integer> {
 	/**
 	 * @param that the other optimization
 	 * @return an optimization that matches this optimization,
-	 * but extended to contain the other optimization
+	 *         but extended to contain the other optimization
 	 */
 	public Optimization mergeWith(final Optimization that) {
 
@@ -131,6 +131,7 @@ public class Optimization extends NumberRange<Integer> {
 	/**
 	 * Applies the optimization of this optimization
 	 * to the values of the charset within the optimization
+	 *
 	 * @param charset the MSX charset
 	 */
 	public void applyTo(final MsxCharset charset) {

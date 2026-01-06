@@ -80,21 +80,21 @@ public class DefaultOptimizationMerger extends AbstractOptimizationMerger {
 			final Optimization b = queueB.peek();
 
 			// (non-overlapped: keeps the optimization that comes first)
-			if (a.isBeforeRange(b)) {
+			if (a.isBefore(b)) {
 				mergedList.add(queueA.poll()); // (keeps)
 				continue;
 			}
-			if (b.isBeforeRange(a)) {
+			if (b.isBefore(a)) {
 				mergedList.add(queueB.poll()); // (keeps)
 				continue;
 			}
 
 			// (overlapped, contained: discards the smaller, contained optimization)
-			if (a.containsRange(b)) {
+			if (a.contains(b)) {
 				queueB.poll(); // (discards)
 				continue;
 			}
-			if (b.containsRange(a)) {
+			if (b.contains(a)) {
 				queueA.poll(); // (discards)
 				continue;
 			}
@@ -102,7 +102,7 @@ public class DefaultOptimizationMerger extends AbstractOptimizationMerger {
 			// (overlapped, mergeable: merges and replaces the pre-merge optimization)
 			if ((a.getMinimum() <= b.getMinimum()) && a.isMergeableWith(b)) {
 				final Optimization mergedItem = a.mergeWith(b);
-				while (!queueA.isEmpty() && mergedItem.containsRange(queueA.peek())) {
+				while (!queueA.isEmpty() && mergedItem.contains(queueA.peek())) {
 					queueA.poll(); // (discards...)
 				}
 				queueA.addFirst(mergedItem); // (...but replaces with merged)
@@ -110,7 +110,7 @@ public class DefaultOptimizationMerger extends AbstractOptimizationMerger {
 			}
 			if ((b.getMinimum() <= a.getMinimum()) && b.isMergeableWith(a)) {
 				final Optimization mergedItem = b.mergeWith(a);
-				while (!queueB.isEmpty() && mergedItem.containsRange(queueB.peek())) {
+				while (!queueB.isEmpty() && mergedItem.contains(queueB.peek())) {
 					queueB.poll(); // (discards...)
 				}
 				queueB.addFirst(mergedItem); // (...but replaces with merged)

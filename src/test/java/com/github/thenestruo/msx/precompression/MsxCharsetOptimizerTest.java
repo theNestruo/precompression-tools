@@ -8,9 +8,9 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.stream.Stream;
 
-import org.apache.commons.lang3.Strings;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Assumptions;
@@ -20,6 +20,9 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.tinylog.Logger;
 
+import com.github.thenestruo.commons.ByteArrays;
+import com.github.thenestruo.commons.Strings;
+import com.github.thenestruo.commons.io.ClassPathResource;
 import com.github.thenestruo.msx.precompression.impl.ColorAndPatternMsxLineOptimizer;
 import com.github.thenestruo.msx.precompression.impl.ColorOnlyMsxLineOptimizer;
 import com.github.thenestruo.msx.precompression.impl.DefaultOptimizationMerger;
@@ -30,8 +33,6 @@ import com.github.thenestruo.msx.precompression.impl.PatternOnlyMsxLineOptimizer
 import com.github.thenestruo.msx.precompression.impl.PrioritizeColorOptimizationMerger;
 import com.github.thenestruo.msx.precompression.impl.PrioritizePatternOptimizationMerger;
 import com.github.thenestruo.msx.precompression.model.MsxCharset;
-import com.github.thenestruo.util.ByteArrayUtils;
-import com.github.thenestruo.util.ClassPathResource;
 
 public class MsxCharsetOptimizerTest {
 
@@ -47,7 +48,7 @@ public class MsxCharsetOptimizerTest {
 			// "roadster-forest.png",
 			// "roadster-night.png",
 			// "roadster-desert.png",
-		};
+	};
 
 	private static final MsxLineOptimizer[] PATTERN_OPTIMIZERS = new MsxLineOptimizer[] {
 			NullMsxLineOptimizer.INSTANCE,
@@ -82,7 +83,8 @@ public class MsxCharsetOptimizerTest {
 	@ParameterizedTest
 	@MethodSource("optimizationTestArguments")
 	void optimizationTest(final String filename, final String label,
-			final MsxLineOptimizer patternOptimizer, final MsxLineOptimizer colorOptimizer, final OptimizationMerger merger)
+			final MsxLineOptimizer patternOptimizer, final MsxLineOptimizer colorOptimizer,
+			final OptimizationMerger merger)
 			throws IOException {
 
 		// Given
@@ -133,8 +135,8 @@ public class MsxCharsetOptimizerTest {
 
 		// Performance traces
 
-		final double referenceChrEntropyRatio = 100.0d * ByteArrayUtils.entropyRatio(chrBytes);
-		final double referenceClrEntropyRatio = 100.0d * ByteArrayUtils.entropyRatio(clrBytes);
+		final double referenceChrEntropyRatio = 100.0d * ByteArrays.entropyRatio(chrBytes);
+		final double referenceClrEntropyRatio = 100.0d * ByteArrays.entropyRatio(clrBytes);
 		final double referenceEntropyRatio = (referenceChrEntropyRatio + referenceClrEntropyRatio) / 2;
 
 		final int referenceZx0ChrSize = zx0(chrBytes).length;
@@ -142,8 +144,8 @@ public class MsxCharsetOptimizerTest {
 		final int referenceZx0TotalSize = referenceZx0ChrSize + referenceZx0ClrSize;
 		final double referenceZx0Ratio = (100.0d * referenceZx0TotalSize) / referenceUncompressedTotalSize;
 
-		final double chrEntropyRatio = 100.0d * ByteArrayUtils.entropyRatio(optimizedCharset.chrtbl());
-		final double clrEntropyRatio = 100.0d * ByteArrayUtils.entropyRatio(optimizedCharset.clrtbl());
+		final double chrEntropyRatio = 100.0d * ByteArrays.entropyRatio(optimizedCharset.chrtbl());
+		final double clrEntropyRatio = 100.0d * ByteArrays.entropyRatio(optimizedCharset.clrtbl());
 		final double entropyRatio = (chrEntropyRatio + clrEntropyRatio) / 2;
 
 		final int zx0ChrSize = zx0(optimizedCharset.chrtbl()).length;
@@ -157,11 +159,12 @@ public class MsxCharsetOptimizerTest {
 		final double zx0RatioDelta = zx0Ratio - referenceZx0Ratio;
 		final double entropyRatioDelta = entropyRatio - referenceEntropyRatio;
 
-		Logger.info(String.format("%s :: B:%4d "
-				+ "-> B:%4d (%4d+%4d)  E:%2d%% (%2d%%,%2d%%)  CR:%2.2f%% "
-				+ "(-> B:%4d (%4d+%4d)) "
-				+ "-> B:%4d (%4d+%4d) [%+5d (%+5d%+5d)]  E:%2d%% (%2d%%,%2d%%) [%+3d%%]  CR:%2.2f%% [%+3.2f%%] "
-				+ ":: %s",
+		Logger.info(String.format("""
+				%s :: B:%4d \
+				-> B:%4d (%4d+%4d)  E:%2d%% (%2d%%,%2d%%)  CR:%2.2f%% \
+				(-> B:%4d (%4d+%4d)) \
+				-> B:%4d (%4d+%4d) [%+5d (%+5d%+5d)]  E:%2d%% (%2d%%,%2d%%) [%+3d%%]  CR:%2.2f%% [%+3.2f%%] \
+				:: %s""",
 				filename,
 				//
 				referenceUncompressedTotalSize,
@@ -177,8 +180,10 @@ public class MsxCharsetOptimizerTest {
 				//
 				label));
 
-		referenceUncompressedTotalSizes.put(label, referenceUncompressedTotalSizes.getOrDefault(label, 0) + referenceUncompressedTotalSize);
-		referenceOptimizedZx0TotalSizes.put(label, referenceOptimizedZx0TotalSizes.getOrDefault(label, 0) + referenceOptimizedZx0TotalSize);
+		referenceUncompressedTotalSizes.put(label,
+				referenceUncompressedTotalSizes.getOrDefault(label, 0) + referenceUncompressedTotalSize);
+		referenceOptimizedZx0TotalSizes.put(label,
+				referenceOptimizedZx0TotalSizes.getOrDefault(label, 0) + referenceOptimizedZx0TotalSize);
 		referenceZx0TotalSizes.put(label, referenceZx0TotalSizes.getOrDefault(label, 0) + referenceZx0TotalSize);
 		zx0TotalSizes.put(label, zx0TotalSizes.getOrDefault(label, 0) + zx0TotalSize);
 	}
@@ -187,9 +192,9 @@ public class MsxCharsetOptimizerTest {
 	static void afterAll() {
 
 		final List<Map.Entry<String, Integer>> list = new ArrayList<>(zx0TotalSizes.entrySet());
-		Collections.sort(list, Comparator.<Map.Entry<String, Integer>> comparingInt(e -> e.getValue()));
+		Collections.sort(list, Comparator.<Map.Entry<String, Integer>>comparingInt(Entry::getValue));
 
-		for(final Map.Entry<String, Integer> entry : list) {
+		for (final Map.Entry<String, Integer> entry : list) {
 			final String label = entry.getKey();
 
 			final int referenceUncompressedTotalSize = referenceUncompressedTotalSizes.get(label);
@@ -198,24 +203,26 @@ public class MsxCharsetOptimizerTest {
 			final double referenceZx0Ratio = (100.0d * referenceZx0TotalSize) / referenceUncompressedTotalSize;
 
 			final int referenceOptimizedZx0TotalSize = referenceOptimizedZx0TotalSizes.get(label);
-			final double referenceOptimizedZx0Ratio = (100.0d * referenceOptimizedZx0TotalSize) / referenceUncompressedTotalSize;
+			final double referenceOptimizedZx0Ratio = (100.0d * referenceOptimizedZx0TotalSize)
+					/ referenceUncompressedTotalSize;
 
 			final int zx0TotalSize = entry.getValue();
 			final int zx0Delta = zx0TotalSize - referenceZx0TotalSize;
 			final double zx0Ratio = (100.0d * zx0TotalSize) / referenceUncompressedTotalSize;
 			final double zx0RatioDelta = zx0Ratio - referenceZx0Ratio;
 
-			Logger.info(String.format("Total :: B:%4d "
-				+ "-> B:%4d  CR:%2.2f%% "
-				+ "-> B-o:%4d [%+5d]  CR-o:%2.2f%% [%+3.2f%%] "
-				+ "-> B:%4d [%+5d]  CR:%2.2f%% [%+3.2f%%] "
-				+ ":: %s",
-				referenceUncompressedTotalSize,
-				referenceZx0TotalSize, referenceZx0Ratio,
-				referenceOptimizedZx0TotalSize, referenceOptimizedZx0TotalSize - referenceZx0TotalSize,
-				referenceOptimizedZx0Ratio, referenceOptimizedZx0Ratio - referenceZx0Ratio,
-				zx0TotalSize, zx0Delta, zx0Ratio, zx0RatioDelta,
-				label));
+			Logger.info(String.format("""
+					Total :: B:%4d \
+					-> B:%4d  CR:%2.2f%% \
+					-> B-o:%4d [%+5d]  CR-o:%2.2f%% [%+3.2f%%] \
+					-> B:%4d [%+5d]  CR:%2.2f%% [%+3.2f%%] \
+					:: %s""",
+					referenceUncompressedTotalSize,
+					referenceZx0TotalSize, referenceZx0Ratio,
+					referenceOptimizedZx0TotalSize, referenceOptimizedZx0TotalSize - referenceZx0TotalSize,
+					referenceOptimizedZx0Ratio, referenceOptimizedZx0Ratio - referenceZx0Ratio,
+					zx0TotalSize, zx0Delta, zx0Ratio, zx0RatioDelta,
+					label));
 		}
 	}
 
@@ -230,9 +237,9 @@ public class MsxCharsetOptimizerTest {
 
 						final String label = String.format(
 								"%s + %s (%s)",
-								Strings.CS.removeEnd(patternOptimizer.getClass().getSimpleName(), "MsxLineOptimizer"),
-								Strings.CS.removeEnd(colorOptimizer.getClass().getSimpleName(), "MsxLineOptimizer"),
-								Strings.CS.removeEnd(merger.getClass().getSimpleName(), "OptimizationMerger"));
+								Strings.removeEnd(patternOptimizer.getClass().getSimpleName(), "MsxLineOptimizer"),
+								Strings.removeEnd(colorOptimizer.getClass().getSimpleName(), "MsxLineOptimizer"),
+								Strings.removeEnd(merger.getClass().getSimpleName(), "OptimizationMerger"));
 
 						list.add(Arguments.of(filename, label, patternOptimizer, colorOptimizer, merger));
 					}
