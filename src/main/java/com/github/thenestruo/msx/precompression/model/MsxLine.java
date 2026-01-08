@@ -1,5 +1,7 @@
 package com.github.thenestruo.msx.precompression.model;
 
+import java.util.Objects;
+
 /**
  * A line of 8 pixels
  */
@@ -40,7 +42,7 @@ public class MsxLine {
 			return true;
 		}
 		if ((this.singleColor() != null)
-				&& (this.singleColor() == that.singleColor())) {
+				&& Objects.equals(this.singleColor(), that.singleColor())) {
 			return true;
 		}
 		return false;
@@ -81,7 +83,7 @@ public class MsxLine {
 
 	/**
 	 * @return if the line has a single color, the single color.
-	 * {@code null} otherwise
+	 *         {@code null} otherwise
 	 */
 	public Byte singleColor() {
 		if (this.pattern == PATTERN_FG) {

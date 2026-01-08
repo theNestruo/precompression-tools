@@ -31,7 +31,7 @@ public class Optimization extends Range<Integer> {
 			final MsxLineOptimizer optimizer, final MsxLine sample, final int from, final int to) {
 		super(from, to);
 
-		this.charset = charset;
+		this.charset = new MsxCharset(charset);
 		this.optimizer = optimizer;
 		this.sample = sample;
 	}

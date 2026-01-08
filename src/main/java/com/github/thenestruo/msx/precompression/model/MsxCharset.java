@@ -17,11 +17,11 @@ public class MsxCharset {
 	}
 
 	public byte[] chrtbl() {
-		return this.chrtbl;
+		return this.chrtbl.clone();
 	}
 
 	public byte[] clrtbl() {
-		return this.clrtbl;
+		return this.clrtbl.clone();
 	}
 
 	public int size() {
