@@ -32,7 +32,7 @@ import picocli.CommandLine.Parameters;
 public class PrecompressApp implements Callable<Integer> {
 
 	public static void main(final String... args) {
-		new CommandLine(new PrecompressApp()).execute(args);
+		System.exit(new CommandLine(new PrecompressApp()).execute(args));
 	}
 
 	@Option(names = { "-h", "--help" }, usageHelp = true, description = "shows usage")
