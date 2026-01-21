@@ -8,6 +8,7 @@ import java.util.Objects;
 
 import org.tinylog.Logger;
 
+import com.github.thenestruo.commons.ByteArrays;
 import com.github.thenestruo.commons.math.Range;
 import com.github.thenestruo.msx.precompression.MsxCharsetOptimizer;
 import com.github.thenestruo.msx.precompression.MsxLineOptimizer;
@@ -53,7 +54,7 @@ public class MsxCharsetOptimizerImpl implements MsxCharsetOptimizer {
 
 	@Override
 	public MsxCharsetOptimizer setColorOptimizer(final MsxLineOptimizer colorOptimizer) {
-		this.colorOptimizer = Objects.requireNonNullElse(colorOptimizer, DEFAULT_PATTERN_OPTIMIZER);
+		this.colorOptimizer = Objects.requireNonNullElse(colorOptimizer, DEFAULT_COLOR_OPTIMIZER);
 		return this;
 	}
 
@@ -77,12 +78,24 @@ public class MsxCharsetOptimizerImpl implements MsxCharsetOptimizer {
 	@Override
 	public MsxCharset optimize(final MsxCharset charset) {
 
+		final int referenceChrtblEntropy = ByteArrays.entropy(charset.chrtbl());
+		final int referenceClrtblEntropy = ByteArrays.entropy(charset.clrtbl());
+		Logger.debug("Source entropy: CHR = {}, CLR = {}", referenceChrtblEntropy, referenceClrtblEntropy);
+
+		final List<Optimization> optimizationRanges = this.computeOptimizationRanges(charset);
+		Logger.debug("Applying {} optimizations...", optimizationRanges.size());
+
 		// (creates a mutable instance)
 		final MsxCharset optimizedCharset = new MsxCharset(charset);
-
-		for (final Optimization optimizationRange : this.computeOptimizationRanges(optimizedCharset)) {
+		for (final Optimization optimizationRange : optimizationRanges) {
 			optimizationRange.applyTo(optimizedCharset);
 		}
+
+		final int chrtblEntropy = ByteArrays.entropy(optimizedCharset.chrtbl());
+		final int clrtblEntropy = ByteArrays.entropy(optimizedCharset.clrtbl());
+		Logger.debug("Optimized entropy: CHR = {} -> {} ({}), CLR = {} -> {} ({})",
+				referenceChrtblEntropy, chrtblEntropy, chrtblEntropy - referenceChrtblEntropy,
+				referenceClrtblEntropy, clrtblEntropy, clrtblEntropy - referenceClrtblEntropy);
 
 		return optimizedCharset;
 	}
@@ -91,43 +104,39 @@ public class MsxCharsetOptimizerImpl implements MsxCharsetOptimizer {
 
 	private List<Optimization> computeOptimizationRanges(final MsxCharset charset) {
 
-		final List<Optimization> forwardPatternOptimizations =
-				this.applyExclusion(
-					this.findForwardOptimizationRanges(charset, this.patternOptimizer));
-		final List<Optimization> backwardsPatternOptimizations =
-				this.applyExclusion(
-					this.findBackwardsOptimizationRanges(charset, this.patternOptimizer));
+		final List<Optimization> forwardPatternOptimizations = this.applyExclusion(
+				this.findForwardOptimizationRanges(charset, this.patternOptimizer));
+		final List<Optimization> backwardsPatternOptimizations = this.applyExclusion(
+				this.findBackwardsOptimizationRanges(charset, this.patternOptimizer));
 
-		final List<Optimization> patternOptimizations =
-				SAME_TYPE_MERGER.merge(forwardPatternOptimizations, backwardsPatternOptimizations);
+		final List<Optimization> patternOptimizations = SAME_TYPE_MERGER.merge(forwardPatternOptimizations,
+				backwardsPatternOptimizations);
 
 		this.debug("patternOptimizations", patternOptimizations, charset);
 
 		//
 
-		final List<Optimization> forwardColorOptimizations =
-				this.applyExclusion(
-					this.findForwardOptimizationRanges(charset, this.colorOptimizer));
-		final List<Optimization> backwardsColorOptimizations =
-				this.applyExclusion(
-					this.findBackwardsOptimizationRanges(charset, this.colorOptimizer));
+		final List<Optimization> forwardColorOptimizations = this.applyExclusion(
+				this.findForwardOptimizationRanges(charset, this.colorOptimizer));
+		final List<Optimization> backwardsColorOptimizations = this.applyExclusion(
+				this.findBackwardsOptimizationRanges(charset, this.colorOptimizer));
 
-		final List<Optimization> colorOptimizations =
-				SAME_TYPE_MERGER.merge(forwardColorOptimizations, backwardsColorOptimizations);
+		final List<Optimization> colorOptimizations = SAME_TYPE_MERGER.merge(forwardColorOptimizations,
+				backwardsColorOptimizations);
 
 		this.debug("colorOptimizations", colorOptimizations, charset);
 
 		//
 
-		final List<Optimization> optimizations =
-				this.merger.merge(patternOptimizations, colorOptimizations);
+		final List<Optimization> optimizations = this.merger.merge(patternOptimizations, colorOptimizations);
 
 		this.debug("optimizations", optimizations, charset);
 
 		return optimizations;
 	}
 
-	private List<Optimization> findForwardOptimizationRanges(final MsxCharset charset, final MsxLineOptimizer optimizer) {
+	private List<Optimization> findForwardOptimizationRanges(final MsxCharset charset,
+			final MsxLineOptimizer optimizer) {
 
 		final List<Optimization> ranges = new ArrayList<>();
 
@@ -165,7 +174,8 @@ public class MsxCharsetOptimizerImpl implements MsxCharsetOptimizer {
 		return ranges;
 	}
 
-	private List<Optimization> findBackwardsOptimizationRanges(final MsxCharset charset, final MsxLineOptimizer optimizer) {
+	private List<Optimization> findBackwardsOptimizationRanges(final MsxCharset charset,
+			final MsxLineOptimizer optimizer) {
 
 		final List<Optimization> ranges = new ArrayList<>();
 
@@ -226,8 +236,7 @@ public class MsxCharsetOptimizerImpl implements MsxCharsetOptimizer {
 		final char[] array = new char[charset.size()];
 		Arrays.fill(array, '_');
 		for (final Optimization range : list) {
-			final char c =
-					  range.optimizer() instanceof PatternAndColorMsxLineOptimizer ? 'P'
+			final char c = range.optimizer() instanceof PatternAndColorMsxLineOptimizer ? 'P'
 					: range.optimizer() instanceof PatternOnlyMsxLineOptimizer ? 'p'
 					: range.optimizer() instanceof ColorAndPatternMsxLineOptimizer ? 'C'
 					: range.optimizer() instanceof ColorOnlyMsxLineOptimizer ? 'c'
@@ -236,7 +245,13 @@ public class MsxCharsetOptimizerImpl implements MsxCharsetOptimizer {
 				array[i] = c;
 			}
 		}
-		final String s = new String(array);
-		Logger.debug("{} = {}", s, key);
+
+		final StringBuilder sb = new StringBuilder();
+		for (int i = 0, n = array.length; i < n; i += 8) {
+			sb.append(new String(array, i, 8)).append(" ");
+		}
+		final String s = sb.toString();
+
+		Logger.debug("{} =\n{}", key, s);
 	}
 }

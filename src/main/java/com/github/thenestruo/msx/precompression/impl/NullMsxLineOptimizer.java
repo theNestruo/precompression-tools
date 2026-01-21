@@ -8,6 +8,11 @@ public enum NullMsxLineOptimizer implements MsxLineOptimizer {
 	INSTANCE;
 
 	@Override
+	public String toString() {
+		return "Null";
+	}
+
+	@Override
 	public boolean isPattern() {
 		return false;
 	}

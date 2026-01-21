@@ -8,6 +8,11 @@ public enum ColorAndPatternMsxLineOptimizer implements MsxLineOptimizer {
 	INSTANCE;
 
 	@Override
+	public String toString() {
+		return "ColorAndPattern";
+	}
+
+	@Override
 	public boolean isPattern() {
 		return false;
 	}

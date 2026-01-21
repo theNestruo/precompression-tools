@@ -38,7 +38,8 @@ public class Optimization extends Range<Integer> {
 
 	@Override
 	public String toString() {
-		return String.format("%dx{%s %s}@%s", this.size(), this.optimizer, this.sample, super.toString());
+		return String.format("%dx{%s %s}@[%d..%d]",
+				this.size(), this.optimizer, this.sample, this.getMinimum(), this.getMaximum());
 	}
 
 	/**
