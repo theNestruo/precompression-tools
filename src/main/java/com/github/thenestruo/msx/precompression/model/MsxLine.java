@@ -22,6 +22,28 @@ public class MsxLine {
 		this.color = color;
 	}
 
+	public MsxLine(final byte pattern, final byte fg, final byte bg) {
+		this(pattern, (byte) ((fg << 4) | (bg & 0x0f)));
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(this.pattern, this.color);
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj == this) {
+			return true;
+		}
+		if ((obj == null) || (obj.getClass() != this.getClass())) {
+			return false;
+		}
+		final MsxLine that = (MsxLine) obj;
+		return Objects.equals(this.pattern, that.pattern)
+				&& Objects.equals(this.color, that.color);
+	}
+
 	@Override
 	public String toString() {
 		return String.format("%02X %01X %01X", this.pattern, this.fg(), this.bg());
@@ -136,6 +158,14 @@ public class MsxLine {
 	 */
 	public MsxLine withSingleColor(final byte singleColor) {
 		return this.withColor((byte) ((singleColor << 4) | (singleColor & 0x0f)));
+	}
+
+	/**
+	 * @param pattern the pattern byte
+	 * @return a line with the specified pattern and this line color
+	 */
+	public MsxLine withPattern(final byte pattern) {
+		return new MsxLine(pattern, this.color);
 	}
 
 	/**

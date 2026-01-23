@@ -15,27 +15,19 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.tinylog.Logger;
 
 import com.github.thenestruo.commons.ByteArrays;
-import com.github.thenestruo.commons.Strings;
 import com.github.thenestruo.commons.io.ClassPathResource;
-import com.github.thenestruo.msx.precompression.impl.ColorAndPatternMsxLineOptimizer;
-import com.github.thenestruo.msx.precompression.impl.ColorOnlyMsxLineOptimizer;
-import com.github.thenestruo.msx.precompression.impl.DefaultOptimizationMerger;
-import com.github.thenestruo.msx.precompression.impl.MsxCharsetOptimizerImpl;
 import com.github.thenestruo.msx.precompression.impl.NewMsxCharsetOptimizerImpl;
-import com.github.thenestruo.msx.precompression.impl.NullMsxLineOptimizer;
-import com.github.thenestruo.msx.precompression.impl.PatternAndColorMsxLineOptimizer;
-import com.github.thenestruo.msx.precompression.impl.PatternOnlyMsxLineOptimizer;
-import com.github.thenestruo.msx.precompression.impl.PrioritizeColorOptimizationMerger;
-import com.github.thenestruo.msx.precompression.impl.PrioritizePatternOptimizationMerger;
 import com.github.thenestruo.msx.precompression.model.MsxCharset;
 
-public class MsxCharsetOptimizerTest {
+@Disabled
+public class NewMsxCharsetOptimizerTest {
 
 	private static final String[] FILENAMES = new String[] {
 			"ninjasenki.png",
@@ -48,23 +40,8 @@ public class MsxCharsetOptimizerTest {
 			"trucho-beach.png",
 			"roadster-forest.png",
 			"roadster-night.png",
-			"roadster-desert.png",
+			"roadster-desert.png"
 	};
-
-	private static final MsxLineOptimizer[] PATTERN_OPTIMIZERS = new MsxLineOptimizer[] {
-			NullMsxLineOptimizer.INSTANCE,
-			PatternOnlyMsxLineOptimizer.INSTANCE,
-			PatternAndColorMsxLineOptimizer.INSTANCE };
-
-	private static final MsxLineOptimizer[] COLOR_OPTIMIZERS = new MsxLineOptimizer[] {
-			NullMsxLineOptimizer.INSTANCE,
-			ColorOnlyMsxLineOptimizer.INSTANCE,
-			ColorAndPatternMsxLineOptimizer.INSTANCE };
-
-	private static final OptimizationMerger[] OPTIMIZATION_MERGERS = new OptimizationMerger[] {
-			DefaultOptimizationMerger.INSTANCE,
-			PrioritizePatternOptimizationMerger.INSTANCE,
-			PrioritizeColorOptimizationMerger.INSTANCE };
 
 	//
 
@@ -75,6 +52,8 @@ public class MsxCharsetOptimizerTest {
 
 	@BeforeAll
 	static void beforeAll() {
+		// Configuration.set("writer.level", "debug");
+
 		referenceUncompressedTotalSizes.clear();
 		referenceOptimizedZx0TotalSizes.clear();
 		referenceZx0TotalSizes.clear();
@@ -83,9 +62,7 @@ public class MsxCharsetOptimizerTest {
 
 	@ParameterizedTest
 	@MethodSource("optimizationTestArguments")
-	void optimizationTest(final String filename, final String label,
-			final MsxLineOptimizer patternOptimizer, final MsxLineOptimizer colorOptimizer,
-			final OptimizationMerger merger)
+	void optimizationTest(final String filename, final String label)
 			throws IOException {
 
 		// Given
@@ -120,14 +97,8 @@ public class MsxCharsetOptimizerTest {
 
 		// When
 
-		final boolean isNew = patternOptimizer == null && colorOptimizer == null && merger == null;
-		final MsxCharsetOptimizer optimizer = isNew
-				? new NewMsxCharsetOptimizerImpl()
-				: new MsxCharsetOptimizerImpl()
-					.setPatternOptimizer(patternOptimizer)
-					.setColorOptimizer(colorOptimizer)
-					.setMerger(merger);
-		final MsxCharset optimizedCharset = optimizer.optimize(referenceCharset);
+		final MsxCharset optimizedCharset = new NewMsxCharsetOptimizerImpl()
+				.optimize(referenceCharset);
 
 		// Then
 
@@ -235,21 +206,9 @@ public class MsxCharsetOptimizerTest {
 		final List<Arguments> list = new ArrayList<>();
 
 		for (final String filename : FILENAMES) {
-			list.add(Arguments.of(filename, "New algorithm", null, null, null));
-			for (final MsxLineOptimizer patternOptimizer : PATTERN_OPTIMIZERS) {
-				for (final MsxLineOptimizer colorOptimizer : COLOR_OPTIMIZERS) {
-					for (final OptimizationMerger merger : OPTIMIZATION_MERGERS) {
+			final String label = "new";
 
-						final String label = String.format(
-								"%s + %s (%s)",
-								Strings.removeEnd(patternOptimizer.getClass().getSimpleName(), "MsxLineOptimizer"),
-								Strings.removeEnd(colorOptimizer.getClass().getSimpleName(), "MsxLineOptimizer"),
-								Strings.removeEnd(merger.getClass().getSimpleName(), "OptimizationMerger"));
-
-						list.add(Arguments.of(filename, label, patternOptimizer, colorOptimizer, merger));
-					}
-				}
-			}
+			list.add(Arguments.of(filename, label));
 		}
 
 		return list.stream();

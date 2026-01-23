@@ -15,6 +15,7 @@ import com.github.thenestruo.msx.precompression.impl.ColorAndPatternMsxLineOptim
 import com.github.thenestruo.msx.precompression.impl.ColorOnlyMsxLineOptimizer;
 import com.github.thenestruo.msx.precompression.impl.DefaultOptimizationMerger;
 import com.github.thenestruo.msx.precompression.impl.MsxCharsetOptimizerImpl;
+import com.github.thenestruo.msx.precompression.impl.NewMsxCharsetOptimizerImpl;
 import com.github.thenestruo.msx.precompression.impl.NullMsxLineOptimizer;
 import com.github.thenestruo.msx.precompression.impl.PatternAndColorMsxLineOptimizer;
 import com.github.thenestruo.msx.precompression.impl.PatternOnlyMsxLineOptimizer;
@@ -71,6 +72,9 @@ public class PrecompressApp implements Callable<Integer> {
 			}
 		}
 	}
+
+	@Option(names = { "-n", "--new" }, description = "use new optimization algorithm")
+	private boolean isNew;
 
 	@Option(names = { "-p", "--pattern" },
 			converter = PatternMsxLineOptimizerTypeConverter.class,
@@ -162,9 +166,16 @@ public class PrecompressApp implements Callable<Integer> {
 			return 30;
 		}
 
-		final MsxCharset optimizedCharset = new MsxCharsetOptimizerImpl().setPatternOptimizer(this.patternOptimizer)
-				.setColorOptimizer(this.colorOptimizer).setMerger(this.optimizationMerger)
-				.setExclusion(this.exclusionRange).optimize(new MsxCharset(chrtblBytes, clrtblBytes));
+		final MsxCharset optimizedCharset = this.isNew
+				? new NewMsxCharsetOptimizerImpl()
+					.setExclusion(this.exclusionRange)
+					.optimize(new MsxCharset(chrtblBytes, clrtblBytes))
+				: new MsxCharsetOptimizerImpl()
+					.setPatternOptimizer(this.patternOptimizer)
+					.setColorOptimizer(this.colorOptimizer)
+					.setMerger(this.optimizationMerger)
+					.setExclusion(this.exclusionRange)
+					.optimize(new MsxCharset(chrtblBytes, clrtblBytes));
 
 		// Writes the optimized file
 		Logger.debug("Binary files to be written: {}, {}", this.chrtblOutputPath(), this.clrtblOutputPath());
