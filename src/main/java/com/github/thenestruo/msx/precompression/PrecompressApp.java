@@ -11,16 +11,7 @@ import org.tinylog.configuration.Configuration;
 
 import com.github.thenestruo.commons.io.Paths;
 import com.github.thenestruo.commons.math.Range;
-import com.github.thenestruo.msx.precompression.impl.ColorAndPatternMsxLineOptimizer;
-import com.github.thenestruo.msx.precompression.impl.ColorOnlyMsxLineOptimizer;
-import com.github.thenestruo.msx.precompression.impl.DefaultOptimizationMerger;
-import com.github.thenestruo.msx.precompression.impl.MsxCharsetOptimizerImpl;
 import com.github.thenestruo.msx.precompression.impl.NewMsxCharsetOptimizerImpl;
-import com.github.thenestruo.msx.precompression.impl.NullMsxLineOptimizer;
-import com.github.thenestruo.msx.precompression.impl.PatternAndColorMsxLineOptimizer;
-import com.github.thenestruo.msx.precompression.impl.PatternOnlyMsxLineOptimizer;
-import com.github.thenestruo.msx.precompression.impl.PrioritizeColorOptimizationMerger;
-import com.github.thenestruo.msx.precompression.impl.PrioritizePatternOptimizationMerger;
 import com.github.thenestruo.msx.precompression.model.MsxCharset;
 
 import picocli.CommandLine;
@@ -76,72 +67,6 @@ public class PrecompressApp implements Callable<Integer> {
 	@Option(names = { "-n", "--new" }, description = "use new optimization algorithm")
 	private boolean isNew;
 
-	@Option(names = { "-p", "--pattern" },
-			converter = PatternMsxLineOptimizerTypeConverter.class,
-			description = "Pattern optimizations: no (default), pattern, patternAndColor",
-			defaultValue = "no")
-	private MsxLineOptimizer patternOptimizer;
-
-	private static class PatternMsxLineOptimizerTypeConverter implements ITypeConverter<MsxLineOptimizer> {
-
-		@Override
-		public MsxLineOptimizer convert(final String value) throws Exception {
-			switch (value) {
-			case "pattern":
-				return PatternOnlyMsxLineOptimizer.INSTANCE;
-			case "patternAndColor":
-				return PatternAndColorMsxLineOptimizer.INSTANCE;
-			case "no":
-			default:
-				return NullMsxLineOptimizer.INSTANCE;
-			}
-		}
-	}
-
-	@Option(names = { "-c", "--color" },
-			converter = ColorMsxLineOptimizerTypeConverter.class,
-			description = "Color optimizations: no, color, colorAndPattern (default)",
-			defaultValue = "colorAndPattern")
-	private MsxLineOptimizer colorOptimizer;
-
-	private static class ColorMsxLineOptimizerTypeConverter implements ITypeConverter<MsxLineOptimizer> {
-
-		@Override
-		public MsxLineOptimizer convert(final String value) throws Exception {
-			switch (value) {
-			case "color":
-				return ColorOnlyMsxLineOptimizer.INSTANCE;
-			case "colorAndPattern":
-				return ColorAndPatternMsxLineOptimizer.INSTANCE;
-			case "no":
-			default:
-				return NullMsxLineOptimizer.INSTANCE;
-			}
-		}
-	}
-
-	@Option(names = { "-m", "--merger" },
-			converter = OptimizationMergerTypeConverter.class,
-			description = "Merge optimizations: prioritizePattern, prioritizeColor, default (default)",
-			defaultValue = "default")
-	private OptimizationMerger optimizationMerger;
-
-	private static class OptimizationMergerTypeConverter implements ITypeConverter<OptimizationMerger> {
-
-		@Override
-		public OptimizationMerger convert(final String value) throws Exception {
-			switch (value) {
-			case "prioritizePattern":
-				return PrioritizePatternOptimizationMerger.INSTANCE;
-			case "prioritizeColor":
-				return PrioritizeColorOptimizationMerger.INSTANCE;
-			case "default":
-			default:
-				return DefaultOptimizationMerger.INSTANCE;
-			}
-		}
-	}
-
 	@Override
 	public Integer call() throws IOException {
 
@@ -166,14 +91,8 @@ public class PrecompressApp implements Callable<Integer> {
 			return 30;
 		}
 
-		final MsxCharset optimizedCharset = this.isNew
-				? new NewMsxCharsetOptimizerImpl()
-					.setExclusion(this.exclusionRange)
-					.optimize(new MsxCharset(chrtblBytes, clrtblBytes))
-				: new MsxCharsetOptimizerImpl()
-					.setPatternOptimizer(this.patternOptimizer)
-					.setColorOptimizer(this.colorOptimizer)
-					.setMerger(this.optimizationMerger)
+		final MsxCharset optimizedCharset =
+				new NewMsxCharsetOptimizerImpl()
 					.setExclusion(this.exclusionRange)
 					.optimize(new MsxCharset(chrtblBytes, clrtblBytes));
 

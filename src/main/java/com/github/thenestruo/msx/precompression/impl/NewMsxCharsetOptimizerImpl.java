@@ -7,29 +7,12 @@ import org.tinylog.Logger;
 
 import com.github.thenestruo.commons.math.Range;
 import com.github.thenestruo.msx.precompression.MsxCharsetOptimizer;
-import com.github.thenestruo.msx.precompression.MsxLineOptimizer;
-import com.github.thenestruo.msx.precompression.OptimizationMerger;
 import com.github.thenestruo.msx.precompression.model.MsxCharset;
 import com.github.thenestruo.msx.precompression.model.MsxLine;
 
 public class NewMsxCharsetOptimizerImpl implements MsxCharsetOptimizer {
 
 	private Range<Integer> exclusion = null;
-
-	@Override
-	public MsxCharsetOptimizer setPatternOptimizer(MsxLineOptimizer patternOptimizer) {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public MsxCharsetOptimizer setColorOptimizer(MsxLineOptimizer colorOptimizer) {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public MsxCharsetOptimizer setMerger(OptimizationMerger merger) {
-		throw new UnsupportedOperationException();
-	}
 
 	@Override
 	public MsxCharsetOptimizer setExclusion(final int from, final int to) {
