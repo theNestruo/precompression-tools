@@ -11,8 +11,7 @@ import org.tinylog.configuration.Configuration;
 
 import com.github.thenestruo.commons.io.Paths;
 import com.github.thenestruo.commons.math.Range;
-import com.github.thenestruo.msx.precompression.impl.NewMsxCharsetOptimizerImpl;
-import com.github.thenestruo.msx.precompression.model.MsxCharset;
+import com.github.thenestruo.commons.msx.MsxCharset;
 
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -91,10 +90,9 @@ public class PrecompressApp implements Callable<Integer> {
 			return 30;
 		}
 
-		final MsxCharset optimizedCharset =
-				new NewMsxCharsetOptimizerImpl()
-					.setExclusion(this.exclusionRange)
-					.optimize(new MsxCharset(chrtblBytes, clrtblBytes));
+		final MsxCharset optimizedCharset = new MsxCharsetOptimizer()
+				.setExclusion(this.exclusionRange)
+				.optimize(MsxCharset.of(chrtblBytes, clrtblBytes));
 
 		// Writes the optimized file
 		Logger.debug("Binary files to be written: {}, {}", this.chrtblOutputPath(), this.clrtblOutputPath());

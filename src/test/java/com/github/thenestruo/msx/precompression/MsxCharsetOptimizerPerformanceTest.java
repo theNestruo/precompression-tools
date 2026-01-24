@@ -3,19 +3,20 @@ package com.github.thenestruo.msx.precompression;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.function.ToDoubleFunction;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -23,13 +24,14 @@ import org.tinylog.Logger;
 
 import com.github.thenestruo.commons.ByteArrays;
 import com.github.thenestruo.commons.io.ClassPathResource;
-import com.github.thenestruo.msx.precompression.impl.NewMsxCharsetOptimizerImpl;
-import com.github.thenestruo.msx.precompression.model.MsxCharset;
+import com.github.thenestruo.commons.maps.Pair;
+import com.github.thenestruo.commons.msx.MsxCharset;
+import com.github.thenestruo.commons.msx.MsxColor;
+import com.github.thenestruo.commons.msx.MsxPalettes;
 
-@Disabled
-public class NewMsxCharsetOptimizerTest {
+public class MsxCharsetOptimizerPerformanceTest {
 
-	private static final String[] FILENAMES = new String[] {
+	private static final List<String> FILENAMES = Collections.unmodifiableList(Arrays.asList(
 			"ninjasenki.png",
 			"pyramidwarpex.png",
 			"stevedore.png",
@@ -40,30 +42,23 @@ public class NewMsxCharsetOptimizerTest {
 			"trucho-beach.png",
 			"roadster-forest.png",
 			"roadster-night.png",
-			"roadster-desert.png"
-	};
-
-	//
+			"roadster-desert.png"));
 
 	private static final Map<String, Integer> referenceUncompressedTotalSizes = new LinkedHashMap<>();
-	private static final Map<String, Integer> referenceOptimizedZx0TotalSizes = new LinkedHashMap<>();
 	private static final Map<String, Integer> referenceZx0TotalSizes = new LinkedHashMap<>();
 	private static final Map<String, Integer> zx0TotalSizes = new LinkedHashMap<>();
 
 	@BeforeAll
 	static void beforeAll() {
-		// Configuration.set("writer.level", "debug");
-
 		referenceUncompressedTotalSizes.clear();
-		referenceOptimizedZx0TotalSizes.clear();
 		referenceZx0TotalSizes.clear();
 		zx0TotalSizes.clear();
 	}
 
 	@ParameterizedTest
-	@MethodSource("optimizationTestArguments")
-	void optimizationTest(final String filename, final String label)
-			throws IOException {
+	@MethodSource("performanceTestArguments")
+	void performanceTest(final String filename, final List<MsxColor> palette, final ToDoubleFunction<MsxColor> function,
+			final String label) throws IOException {
 
 		// Given
 
@@ -80,24 +75,12 @@ public class NewMsxCharsetOptimizerTest {
 		final int referenceUncompressedClrSize = clrBytes.length;
 		final int referenceUncompressedTotalSize = referenceUncompressedChrSize + referenceUncompressedClrSize;
 
-		final MsxCharset referenceCharset = new MsxCharset(chrBytes, clrBytes);
-
-		final byte[] oChrBytes;
-		final byte[] oClrBytes;
-		try (
-				final InputStream chrInputStream = new ClassPathResource(filename + ".chr-o").getInputStream();
-				final InputStream clrInputStream = new ClassPathResource(filename + ".clr-o").getInputStream()) {
-			oChrBytes = chrInputStream.readAllBytes();
-			oClrBytes = clrInputStream.readAllBytes();
-		}
-		Assumptions.assumeTrue(oChrBytes.length == oClrBytes.length);
-		final int referenceOptimizedZx0ChrSize = zx0(oChrBytes).length;
-		final int referenceOptimizedZx0ClrSize = zx0(oClrBytes).length;
-		final int referenceOptimizedZx0TotalSize = referenceOptimizedZx0ChrSize + referenceOptimizedZx0ClrSize;
+		final MsxCharset referenceCharset = MsxCharset.of(chrBytes, clrBytes);
 
 		// When
 
-		final MsxCharset optimizedCharset = new NewMsxCharsetOptimizerImpl()
+		final MsxCharset optimizedCharset = new MsxCharsetOptimizer()
+				.setColorOrder(palette, function)
 				.optimize(referenceCharset);
 
 		// Then
@@ -137,7 +120,6 @@ public class NewMsxCharsetOptimizerTest {
 		Logger.info(String.format("""
 				%s :: B:%4d \
 				-> B:%4d (%4d+%4d)  E:%2d%% (%2d%%,%2d%%)  CR:%2.2f%% \
-				(-> B:%4d (%4d+%4d)) \
 				-> B:%4d (%4d+%4d) [%+5d (%+5d%+5d)]  E:%2d%% (%2d%%,%2d%%) [%+3d%%]  CR:%2.2f%% [%+3.2f%%] \
 				:: %s""",
 				filename,
@@ -147,8 +129,6 @@ public class NewMsxCharsetOptimizerTest {
 				(int) referenceEntropyRatio, (int) referenceChrEntropyRatio, (int) referenceClrEntropyRatio,
 				referenceZx0Ratio,
 				//
-				referenceOptimizedZx0TotalSize, referenceOptimizedZx0ChrSize, referenceOptimizedZx0ClrSize,
-				//
 				zx0TotalSize, zx0ChrSize, zx0ClrSize, zx0Delta, zx0ChrDelta, zx0ClrDelta,
 				(int) entropyRatio, (int) chrEntropyRatio, (int) clrEntropyRatio, (int) entropyRatioDelta,
 				zx0Ratio, zx0RatioDelta,
@@ -157,10 +137,36 @@ public class NewMsxCharsetOptimizerTest {
 
 		referenceUncompressedTotalSizes.put(label,
 				referenceUncompressedTotalSizes.getOrDefault(label, 0) + referenceUncompressedTotalSize);
-		referenceOptimizedZx0TotalSizes.put(label,
-				referenceOptimizedZx0TotalSizes.getOrDefault(label, 0) + referenceOptimizedZx0TotalSize);
 		referenceZx0TotalSizes.put(label, referenceZx0TotalSizes.getOrDefault(label, 0) + referenceZx0TotalSize);
 		zx0TotalSizes.put(label, zx0TotalSizes.getOrDefault(label, 0) + zx0TotalSize);
+	}
+
+	private static Stream<Arguments> performanceTestArguments() {
+
+		final List<Arguments> list = new ArrayList<>();
+
+		for (final String filename : FILENAMES) {
+
+			for (final Pair<String, List<MsxColor>> palette : Arrays.asList(
+					Pair.of("none___", (List<MsxColor>) null),
+					Pair.of("tms9918", MsxPalettes.TMS9918_PALETTE),
+					Pair.of("tms9219", MsxPalettes.TMS9219_PALETTE),
+					Pair.of("yazioh_", MsxPalettes.YAZIOH_PALETTE),
+					Pair.of("toshiba", MsxPalettes.TOSHIBA_PALETTE),
+					Pair.of("v9938__", MsxPalettes.V9938_PALETTE))) {
+
+				for (final Pair<String, ToDoubleFunction<MsxColor>> function : Arrays.asList(
+						Pair.of("brighne", (ToDoubleFunction<MsxColor>) MsxColor::brightness),
+						Pair.of("percBri", (ToDoubleFunction<MsxColor>) MsxColor::perceivedBrightness),
+						Pair.of("relLumi", (ToDoubleFunction<MsxColor>) MsxColor::relativeLuminance))) {
+
+					final String label = String.format("%s-%s", function.getKey(), palette.getKey());
+					list.add(Arguments.of(filename, palette.getValue(), function.getValue(), label));
+				}
+			}
+		}
+
+		return list.stream();
 	}
 
 	@AfterAll
@@ -177,10 +183,6 @@ public class NewMsxCharsetOptimizerTest {
 			final int referenceZx0TotalSize = referenceZx0TotalSizes.get(label);
 			final double referenceZx0Ratio = (100.0d * referenceZx0TotalSize) / referenceUncompressedTotalSize;
 
-			final int referenceOptimizedZx0TotalSize = referenceOptimizedZx0TotalSizes.get(label);
-			final double referenceOptimizedZx0Ratio = (100.0d * referenceOptimizedZx0TotalSize)
-					/ referenceUncompressedTotalSize;
-
 			final int zx0TotalSize = entry.getValue();
 			final int zx0Delta = zx0TotalSize - referenceZx0TotalSize;
 			final double zx0Ratio = (100.0d * zx0TotalSize) / referenceUncompressedTotalSize;
@@ -189,29 +191,13 @@ public class NewMsxCharsetOptimizerTest {
 			Logger.info(String.format("""
 					Total :: B:%4d \
 					-> B:%4d  CR:%2.2f%% \
-					-> B-o:%4d [%+5d]  CR-o:%2.2f%% [%+3.2f%%] \
 					-> B:%4d [%+5d]  CR:%2.2f%% [%+3.2f%%] \
 					:: %s""",
 					referenceUncompressedTotalSize,
 					referenceZx0TotalSize, referenceZx0Ratio,
-					referenceOptimizedZx0TotalSize, referenceOptimizedZx0TotalSize - referenceZx0TotalSize,
-					referenceOptimizedZx0Ratio, referenceOptimizedZx0Ratio - referenceZx0Ratio,
 					zx0TotalSize, zx0Delta, zx0Ratio, zx0RatioDelta,
 					label));
 		}
-	}
-
-	private static Stream<Arguments> optimizationTestArguments() {
-
-		final List<Arguments> list = new ArrayList<>();
-
-		for (final String filename : FILENAMES) {
-			final String label = "new";
-
-			list.add(Arguments.of(filename, label));
-		}
-
-		return list.stream();
 	}
 
 	private static byte[] zx0(final byte[] input) {
