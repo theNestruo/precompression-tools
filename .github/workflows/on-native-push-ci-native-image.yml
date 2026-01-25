@@ -9,8 +9,9 @@ on:
     - native
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  build-windows:
+    name: Windows build
+    runs-on: windows-latest
     steps:
 
     - name: Setup Maven
@@ -27,11 +28,14 @@ jobs:
 
     - name: echo
       run: |
-        echo "GRAALVM_HOME: $GRAALVM_HOME"
-        echo "JAVA_HOME: $JAVA_HOME"
-        java --version
-        native-image --version
         mvn --version
+        native-image --version
 
-    - name: mvn native package
+    - name: mvn native package (Windows)
       run: mvn --batch-mode --activate-profiles native package
+
+    - name: Upload nightly build
+      uses: actions/upload-artifact@v6
+      with:
+        name: windows-binaries
+        path: target/precompression.exe
