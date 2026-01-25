@@ -43,6 +43,9 @@ public class PrecompressApp implements Callable<Integer> {
 			description = "Excluded range of addresses: <from>..<to>")
 	private Range<Integer> exclusionRange;
 
+	@Option(names = { "-i", "--invert" }, description = "invert the CHRTBL/CLRTBL bytes of the entire charset")
+	private boolean invert;
+
 	private static class ExclusionTypeConverter implements ITypeConverter<Range<Integer>> {
 
 		@Override
@@ -62,9 +65,6 @@ public class PrecompressApp implements Callable<Integer> {
 			}
 		}
 	}
-
-	@Option(names = { "-n", "--new" }, description = "use new optimization algorithm")
-	private boolean isNew;
 
 	@Override
 	public Integer call() throws IOException {
@@ -92,6 +92,7 @@ public class PrecompressApp implements Callable<Integer> {
 
 		final MsxCharset optimizedCharset = new MsxCharsetOptimizer()
 				.setExclusion(this.exclusionRange)
+				.setInvert(this.invert)
 				.optimize(MsxCharset.of(chrtblBytes, clrtblBytes));
 
 		// Writes the optimized file

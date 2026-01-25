@@ -32,11 +32,25 @@ public class MsxCharsetOptimizer {
 
 	//
 
+	private boolean invert = false;
+
+	public MsxCharsetOptimizer setInvert(final boolean invert) {
+		this.invert = invert;
+		return this;
+	}
+
+	//
+
 	/**
 	 * The default {@link #colorOrder} matches the order of
 	 * the {@link com.github.thenestruo.commons.msx.MsxPalettes#YAZIOH_PALETTE}
 	 * sorted by {@link com.github.thenestruo.commons.color.Color#relativeLuminance()}
 	 * because empirical test have shown a slightly better compression ratio.
+	 * A typical charset may have some tiles with similar graphics with different colors;
+	 * choosing the foreground/background colors based on luminance
+	 * cause those graphics to have similar byte sequences in the CHRTBL data.
+	 * Therefore, it prevents worse CHRTBL compression ratios,
+	 * and has no effect on CLRTBL compression ratios.
 	 */
 	private static final List<Byte> DEFAULT_COLOR_ORDER = Collections.unmodifiableList(Arrays.asList(
 			(byte) 0x0, (byte) 0x1, (byte) 0x4, (byte) 0x6, (byte) 0xD, (byte) 0x5, (byte) 0x8, (byte) 0xC,
@@ -92,11 +106,18 @@ public class MsxCharsetOptimizer {
 		MsxLine previousValue = MsxLine.backgroundOfColor(preferredBackground);
 		for (int i = 0, n = charset.size(); i < n; i++) {
 			final MsxLine candidate = charset.get(i);
-			final MsxLine optimized = (this.exclusion == null) || (!this.exclusion.contains(i))
-					? this.optimize(candidate, preferredBackground, previousValue)
-					: candidate;
-			optimizedCharset.set(i, optimized);
-			previousValue = optimized;
+			if ((this.exclusion != null) && this.exclusion.contains(i)) {
+				// (excluded)
+				optimizedCharset.set(i, candidate);
+				previousValue = candidate;
+			} else {
+				MsxLine optimized = this.optimize(candidate, preferredBackground, previousValue);
+				if (this.invert) {
+					optimized = optimized.inverted();
+				}
+				optimizedCharset.set(i, optimized);
+				previousValue = optimized;
+			}
 		}
 
 		return optimizedCharset;

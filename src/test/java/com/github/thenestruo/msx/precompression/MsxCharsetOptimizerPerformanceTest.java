@@ -57,7 +57,7 @@ public class MsxCharsetOptimizerPerformanceTest {
 
 	@ParameterizedTest
 	@MethodSource("performanceTestArguments")
-	void performanceTest(final String filename, final List<MsxColor> palette, final ToDoubleFunction<MsxColor> function,
+	void performanceTest(final String filename, final boolean invert, final List<MsxColor> palette, final ToDoubleFunction<MsxColor> function,
 			final String label) throws IOException {
 
 		// Given
@@ -161,7 +161,8 @@ public class MsxCharsetOptimizerPerformanceTest {
 						Pair.of("relLumi", (ToDoubleFunction<MsxColor>) MsxColor::relativeLuminance))) {
 
 					final String label = String.format("%s-%s", function.getKey(), palette.getKey());
-					list.add(Arguments.of(filename, palette.getValue(), function.getValue(), label));
+					list.add(Arguments.of(filename, false, palette.getValue(), function.getValue(), label));
+					list.add(Arguments.of(filename, true, palette.getValue(), function.getValue(), label + "-i"));
 				}
 			}
 		}

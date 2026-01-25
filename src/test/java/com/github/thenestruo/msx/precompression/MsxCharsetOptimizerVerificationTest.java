@@ -2,19 +2,24 @@ package com.github.thenestruo.msx.precompression;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import com.github.thenestruo.commons.io.ClassPathResource;
 import com.github.thenestruo.commons.msx.MsxCharset;
 
 public class MsxCharsetOptimizerVerificationTest {
 
-	@ParameterizedTest
-	@ValueSource(strings = {
+	private static final List<String> FILENAMES = Collections.unmodifiableList(Arrays.asList(
 			"ninjasenki.png",
 			"pyramidwarpex.png",
 			"stevedore.png",
@@ -25,8 +30,11 @@ public class MsxCharsetOptimizerVerificationTest {
 			"trucho-beach.png",
 			"roadster-forest.png",
 			"roadster-night.png",
-			"roadster-desert.png" })
-	void verificationTest(final String filename) throws IOException {
+			"roadster-desert.png"));
+
+	@ParameterizedTest
+	@MethodSource("verificationTestArguments")
+	void verificationTest(final String filename, final boolean invert) throws IOException {
 
 		// Given
 
@@ -44,7 +52,9 @@ public class MsxCharsetOptimizerVerificationTest {
 
 		// When
 
-		final MsxCharset optimizedCharset = new MsxCharsetOptimizer().optimize(referenceCharset);
+		final MsxCharset optimizedCharset = new MsxCharsetOptimizer()
+				.setInvert(invert)
+				.optimize(referenceCharset);
 
 		// Then
 
@@ -53,5 +63,18 @@ public class MsxCharsetOptimizerVerificationTest {
 					referenceCharset.get(i).isEquivalentTo(optimizedCharset.get(i)),
 					"Expected " + referenceCharset.get(i) + ", but found: " + optimizedCharset.get(i));
 		}
+	}
+
+	private static Stream<Arguments> verificationTestArguments() {
+
+		final List<Arguments> list = new ArrayList<>();
+
+		for (final String filename : FILENAMES) {
+
+			list.add(Arguments.of(filename, false));
+			list.add(Arguments.of(filename, true));
+		}
+
+		return list.stream();
 	}
 }
