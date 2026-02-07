@@ -19,47 +19,31 @@ import com.github.thenestruo.commons.msx.MsxLine;
 
 public class MsxCharsetOptimizer {
 
-	private Range<Integer> exclusion = null;
-
-	public MsxCharsetOptimizer setExclusion(final int from, final int to) {
-		return this.setExclusion(new Range<>(from, to));
-	}
-
-	public MsxCharsetOptimizer setExclusion(final Range<Integer> exclusion) {
-		this.exclusion = exclusion;
-		return this;
-	}
-
-	//
-
-	private boolean invert = false;
-
-	public MsxCharsetOptimizer setInvert(final boolean invert) {
-		this.invert = invert;
-		return this;
-	}
-
-	//
-
 	/**
 	 * The default {@link #colorOrder} matches the order of
 	 * the {@link com.github.thenestruo.commons.msx.MsxPalettes#YAZIOH_PALETTE}
 	 * sorted by {@link com.github.thenestruo.commons.color.Color#relativeLuminance()}
-	 * because empirical test have shown a slightly better compression ratio.
-	 * A typical charset may have some tiles with similar graphics with different colors;
+	 * because empirical test have shown a slightly better compression ratio:
+	 * {@code 0146C285D937ABEF}
+	 */
+	private static final List<Byte> DEFAULT_COLOR_ORDER = Collections.unmodifiableList(Arrays.asList(
+			// MsxPalettes#YAZIOH_PALETTE, Color#brightness:
+			// (byte) 0x0, (byte) 0x1, (byte) 0x4, (byte) 0x6, (byte) 0xC, (byte) 0x2, (byte) 0x8, (byte) 0x5,
+			// (byte) 0xD, (byte) 0x9, (byte) 0x3, (byte) 0x7, (byte) 0xA, (byte) 0xB, (byte) 0xE, (byte) 0xF
+
+			// MsxPalettes#YAZIOH_PALETTE, Color#relativeLuminance:
+			(byte) 0x0, (byte) 0x1, (byte) 0x4, (byte) 0x6, (byte) 0xD, (byte) 0x5, (byte) 0x8, (byte) 0xC,
+			(byte) 0x2, (byte) 0x9, (byte) 0x3, (byte) 0xA, (byte) 0x7, (byte) 0xE, (byte) 0xB, (byte) 0xF
+		));
+
+	/**
+	 * The palette indexes, sorted by brigthness/luminance.
+	 * A typical charset may have some tiles with similar graphics with different
+	 * colors;
 	 * choosing the foreground/background colors based on luminance
 	 * cause those graphics to have similar byte sequences in the CHRTBL data.
 	 * Therefore, it prevents worse CHRTBL compression ratios,
 	 * and has no effect on CLRTBL compression ratios.
-	 */
-	private static final List<Byte> DEFAULT_COLOR_ORDER = Collections.unmodifiableList(Arrays.asList(
-			(byte) 0x0, (byte) 0x1, (byte) 0x4, (byte) 0x6, (byte) 0xD, (byte) 0x5, (byte) 0x8, (byte) 0xC,
-			(byte) 0x2, (byte) 0x9, (byte) 0x3, (byte) 0xA, (byte) 0x7, (byte) 0xE, (byte) 0xB, (byte) 0xF));
-
-	/**
-	 * The palette indexes, sorted by brigthness/luminance
-	 *
-	 * @see #optimizeNotPreferredBackground(MsxLine, byte)
 	 */
 	private List<Byte> colorOrder = DEFAULT_COLOR_ORDER;
 
@@ -70,9 +54,9 @@ public class MsxCharsetOptimizer {
 		}
 
 		final ArrayList<MsxColor> modifiableList = new ArrayList<>(Objects.requireNonNull(palette));
-		modifiableList.sort(
-				Comparator.comparingDouble(Objects.requireNonNull(function))
-						.thenComparing(Comparator.comparingInt(MsxColor::getIndex)));
+		modifiableList.sort(Comparator
+				.comparingDouble(Objects.requireNonNull(function))
+				.thenComparing(Comparator.comparingInt(MsxColor::getIndex)));
 		return this.setColorOrder(modifiableList.stream().map(MsxColor::getIndex).toList());
 	}
 
@@ -87,142 +71,234 @@ public class MsxCharsetOptimizer {
 		return this;
 	}
 
+	private Boolean forceStrippedImage = null;
+
+	public MsxCharsetOptimizer setForceStrippedImage(final Boolean forceStrippedImage) {
+		this.forceStrippedImage = forceStrippedImage;
+		return this;
+	}
+
+	private Range<Integer> exclusion = null;
+
+	public MsxCharsetOptimizer setExclusion(final int from, final int to) {
+		return this.setExclusion(new Range<>(from, to));
+	}
+
+	public MsxCharsetOptimizer setExclusion(final Range<Integer> exclusion) {
+		this.exclusion = exclusion;
+		return this;
+	}
+
 	//
 
 	public MsxCharset optimize(final MsxCharset charset) {
 
-		// Locates the most common color (to be used as background where possible)
-		final int[] colorDistribution = this.computeColorDistribution(charset);
-		final byte preferredBackground = (byte) IntArrays.indexOfMax(colorDistribution);
+		boolean strippedImage = this.detectStrippedImage(charset);
+		return new Process(charset, this.colorOrder, strippedImage, this.exclusion)
+				.optimize();
+	}
 
-		Logger.debug("Preferred background: {} (most common color). Luminance order: {}. Color distribution: {}.",
-				String.format("%01X", preferredBackground),
-				this.colorOrder.stream().map(i -> String.format("%01X", i)).collect(Collectors.joining()),
-				Arrays.toString(colorDistribution));
+	private boolean detectStrippedImage(final MsxCharset charset) {
 
-		// (creates a mutable instance)
-		final MsxCharset optimizedCharset = MsxCharset.copyOf(charset);
+		// Forced to yes/no?
+		if (this.forceStrippedImage != null) {
+			return this.forceStrippedImage.booleanValue();
+		}
 
-		MsxLine previousValue = MsxLine.backgroundOfColor(preferredBackground);
-		for (int i = 0, n = charset.size(); i < n; i++) {
-			final MsxLine candidate = charset.get(i);
-			if ((this.exclusion != null) && this.exclusion.contains(i)) {
-				// (excluded)
-				optimizedCharset.set(i, candidate);
-				previousValue = candidate;
-			} else {
-				MsxLine optimized = this.optimize(candidate, preferredBackground, previousValue);
-				if (this.invert) {
-					optimized = optimized.inverted();
-				}
+		final int[] colorCount = charset.colorCount(MsxLine::colorCountByPixel);
+		final int[] evenLinesColorCount = charset.evenLinesColorCount(MsxLine::colorCountByPixel);
+		final int[] oddLinesColorCount = charset.oddLinesColorCount(MsxLine::colorCountByPixel);
+
+		final byte mostFrequentColor = (byte) IntArrays.indexOfMax(colorCount);
+		final byte mostFrequentEvenColor = (byte) IntArrays.indexOfMax(evenLinesColorCount);
+		final byte mostFrequentOddColor = (byte) IntArrays.indexOfMax(oddLinesColorCount);
+
+		// Even/odd background is reference background and the other one is not?
+		if ((mostFrequentColor == mostFrequentEvenColor) == (mostFrequentColor == mostFrequentOddColor)) {
+			return false;
+		}
+
+		final int maxColorCount = colorCount[mostFrequentColor];
+		final int maxEvenColorCount = evenLinesColorCount[mostFrequentEvenColor];
+		final int maxOddColorCount = oddLinesColorCount[mostFrequentOddColor];
+
+		// Enough excess of reference background representation in even/odd background (>= 5%)?
+		final int excess = (mostFrequentColor == mostFrequentEvenColor)
+				? Math.abs(maxEvenColorCount * 2 - maxColorCount) / 2
+				: Math.abs(maxOddColorCount  * 2 - maxColorCount) / 2;
+		final int threshold = 5 * charset.size() / 100;
+		return excess >= threshold;
+	}
+
+	//
+
+	private static class Process {
+
+		private final MsxCharset charset;
+
+		private final List<Byte> colorOrder;
+
+		private final boolean strippedImage;
+
+		private final Range<Integer> exclusion;
+
+		private final byte preferredBackground;
+
+		//
+
+		private Process(final MsxCharset charset, final List<Byte> colorOrder, final boolean strippedImage,
+				final Range<Integer> exclusion) {
+			this.charset = charset;
+			this.colorOrder = colorOrder;
+			this.strippedImage = strippedImage;
+			this.exclusion = exclusion;
+
+			// Locates the most common color (to be used as background where possible)
+			final int[] colorCountByPixel = charset.colorCount(MsxLine::colorCountByPixel);
+			this.preferredBackground = (byte) IntArrays.indexOfMax(colorCountByPixel);
+
+			Logger.debug("Colors: count={}, preferred bg={}, dark-to-light color order={}",
+					Arrays.toString(colorCountByPixel),
+					String.format("%01X", this.preferredBackground),
+					this.colorOrder.stream().map(i -> String.format("%01X", i)).collect(Collectors.joining()));
+		}
+
+		private transient MsxLine previousValue;
+
+		public MsxCharset optimize() {
+
+			// (creates a mutable instance)
+			final MsxCharset optimizedCharset = MsxCharset.copyOf(this.charset);
+
+			this.previousValue = MsxLine.backgroundOfColor(this.preferredBackground);
+			for (int i = 0, n = this.charset.size(); i < n; i++) {
+				final MsxLine candidate = this.charset.get(i);
+
+				final boolean isExcluded = (this.exclusion != null) && this.exclusion.contains(i);
+				final MsxLine optimized = isExcluded ? candidate : this.optimize(candidate);
 				optimizedCharset.set(i, optimized);
-				previousValue = optimized;
+
+				this.previousValue = optimized;
 			}
+
+			return optimizedCharset;
 		}
 
-		return optimizedCharset;
-	}
+		/**
+		 * @param candidate the MSX line to be optimized
+		 * @return the optimized MSX line
+		 */
+		private MsxLine optimize(final MsxLine candidate) {
 
-	/**
-	 * @param charset the MSX charset data
-	 * @return the number of pixels of each color
-	 */
-	private int[] computeColorDistribution(final MsxCharset charset) {
-
-		final int colorDistribution[] = new int[16];
-
-		for (int i = 0, n = charset.size(); i < n; i++) {
-			final MsxLine line = charset.get(i);
-			final byte pattern = line.chrtblByte();
-			final int fg = line.fg();
-			final int bg = line.bg();
-			for (int bit = 0; bit < 8; bit++) {
-				final int colorIndex = ((pattern & (1 << bit)) != 0) ? fg : bg;
-				colorDistribution[colorIndex]++;
+			if (candidate.isEquivalentTo(this.previousValue)) {
+				// Best case scenario: continue using both CHRTBL and CLRTBL values
+				this.debug(candidate, this.previousValue, "Same as previous line");
+				return this.previousValue;
 			}
+
+			return candidate.isSingleColor()
+					? this.optimizeSingleColor(candidate)
+					: this.optimizeTwoColors(candidate);
 		}
-		return colorDistribution;
-	}
 
-	/**
-	 * @param candidate           the MSX line to be optimized
-	 * @param preferredBackground the most common color (to be used as background where possible)
-	 * @param previousValue       the previous MSX line (to reuse the CLRTBL byte where possible)
-	 * @return the optimized MSX line
-	 */
-	private MsxLine optimize(final MsxLine candidate, final byte preferredBackground, final MsxLine previousValue) {
+		private MsxLine optimizeSingleColor(final MsxLine candidate) {
 
-		return candidate.isSingleColor()
-				? this.optimizeSingleColor(candidate, preferredBackground, previousValue)
-				: this.optimizeTwoColors(candidate, preferredBackground, previousValue);
-	}
-
-	private MsxLine optimizeSingleColor(
-			final MsxLine candidate, final byte preferredBackground, final MsxLine previousValue) {
-
-		// Single color
-		final byte singleColor = candidate.singleColor();
-
-		// Attempts to reuse the previous CLRTBL value...
-		if (previousValue != null) {
-
-			// ...as single color background/foreground
-			if (singleColor == previousValue.bg()) {
-				return MsxLine.backgroundUsing(previousValue);
+			if (this.strippedImage) {
+				// This seems to yield better compression ratios than more complex algorithms
+				// for stripped images that have rapidly changing either CHRLTBL or CLRTBL bytes
+				final MsxLine optimized = MsxLine.foregroundOf(candidate.singleColor(), this.preferredBackground);
+				this.debug(candidate, optimized, "Full foreground");
+				return optimized;
 			}
-			if (singleColor == previousValue.fg()) {
-				return MsxLine.foregroundUsing(previousValue);
+
+			// Single color
+			final byte singleColor = candidate.singleColor();
+
+			// Attempts to reuse the previous CLRTBL value
+			if (singleColor == this.previousValue.bg()) {
+				final MsxLine optimized = MsxLine.backgroundUsing(this.previousValue);
+				this.debug(candidate, optimized, "Full background (reuses previous line colors)");
+				return optimized;
 			}
+			if (singleColor == this.previousValue.fg()) {
+				final MsxLine optimized = MsxLine.foregroundUsing(this.previousValue);
+				this.debug(candidate, optimized, "Full foreground (reuses previous line colors)");
+				return optimized;
+			}
+
+			final int referenceIndex = this.colorOrder.indexOf(this.preferredBackground);
+			final int singleColorIndex = this.colorOrder.indexOf(singleColor);
+			final boolean isBackground = (referenceIndex < 8) == (singleColorIndex < 8);
+
+			if (isBackground) {
+				final MsxLine optimized = MsxLine.backgroundOf((byte) 0x00, singleColor);
+				this.debug(candidate, optimized, "Full background");
+				return optimized;
+			}
+
+			final MsxLine optimized = MsxLine.foregroundOf(singleColor, this.preferredBackground);
+			this.debug(candidate, optimized, "Full foreground (over preferred background)");
+			return optimized;
 		}
 
-		// Attempts to use preferred background
-		if (singleColor == preferredBackground) {
-			return MsxLine.backgroundOfColor(preferredBackground);
+		private MsxLine optimizeTwoColors(final MsxLine candidate) {
+
+			// Attempts to continue using the previous CLRTBL value
+			if (candidate.clrtblByte() == this.previousValue.clrtblByte()) {
+				final MsxLine optimized = candidate;
+				this.debug(candidate, optimized, "Reuses previous line colors");
+				return optimized;
+			}
+			if (candidate.invertedClrtblByte() == this.previousValue.clrtblByte()) {
+				final MsxLine optimized = candidate.inverted();
+				this.debug(candidate, optimized, "Reuses previous line colors (inverted line)");
+				return optimized;
+			}
+
+			// Attempts to use the preferred background
+			if (candidate.bg() == this.preferredBackground) {
+				final MsxLine optimized = candidate;
+				this.debug(candidate, optimized, "Preferred background");
+				return optimized;
+			}
+			if (candidate.fg() == this.preferredBackground) {
+				final MsxLine optimized = candidate.inverted();
+				this.debug(candidate, optimized, "Preferred background (inverted line)");
+				return optimized;
+			}
+
+			// Two colors, preferred background not present
+
+			final int referenceIndex = this.colorOrder.indexOf(this.preferredBackground);
+			final int bgIndex = this.colorOrder.indexOf(candidate.bg());
+			final int fgIndex = this.colorOrder.indexOf(candidate.fg());
+
+			// Background should be darker when the preferred background is dark,
+			// and brighter when the preferred background is bright
+			final boolean isInverted = referenceIndex < 8
+					? bgIndex > fgIndex
+					: bgIndex < fgIndex;
+
+			if (isInverted) {
+				final MsxLine optimized = candidate.inverted();
+				this.debug(candidate, optimized, "Two colors (inverted line)");
+				return optimized;
+			}
+
+			final MsxLine optimized = candidate;
+			this.debug(candidate, optimized, "Two colors");
+			return optimized;
 		}
 
-		// Uses the single color as foreground over the preferred background
-		return MsxLine.foregroundOf(singleColor, preferredBackground);
-	}
+		private void debug(final MsxLine from, final MsxLine to, final String message) {
 
-	private MsxLine optimizeTwoColors(
-			final MsxLine candidate, final byte preferredBackground, final MsxLine previousValue) {
+			if (!Logger.isDebugEnabled()) {
+				return;
+			}
 
-		// Two colors
-
-		// Attempts to use the preferred background
-		if (candidate.bg() == preferredBackground) {
-			return candidate;
+			Logger.debug("[{}] {} [{}] (pref.bg={}, previous=[{}]) {}",
+					from, from.isSameAs(to) ? "==" : "XX", to,
+					this.preferredBackground, this.previousValue, message);
 		}
-		if (candidate.fg() == preferredBackground) {
-			return candidate.inverted();
-		}
-
-		// Attempts to reuse the previous CLRTBL value
-		if (candidate.clrtblByte() == previousValue.clrtblByte()) {
-			return candidate;
-		}
-		if (candidate.invertedClrtblByte() == previousValue.clrtblByte()) {
-			return candidate.inverted();
-		}
-
-		// Most common color not present
-		return this.optimizeNotPreferredBackground(candidate, preferredBackground);
-	}
-
-	private MsxLine optimizeNotPreferredBackground(final MsxLine candidate, final byte preferredBackground) {
-
-		// Two colors, most common color not present
-
-		final int referenceIndex = this.colorOrder.indexOf(preferredBackground);
-		final int bgIndex = this.colorOrder.indexOf(candidate.bg());
-		final int fgIndex = this.colorOrder.indexOf(candidate.fg());
-
-		// Background should be darker when the preferred background is dark,
-		// and brighter when the preferred background is bright
-		final boolean isInverted = referenceIndex < 8
-				? bgIndex > fgIndex
-				: bgIndex < fgIndex;
-
-		return isInverted ? candidate.inverted() : candidate;
 	}
 }

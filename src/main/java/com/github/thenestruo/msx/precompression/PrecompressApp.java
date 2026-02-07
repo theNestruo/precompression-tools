@@ -32,6 +32,9 @@ public class PrecompressApp implements Callable<Integer> {
 	@Option(names = { "-v", "--verbose" }, description = "verbose execution")
 	private boolean verbose;
 
+	@Option(names = { "-vv", "--very-verbose" }, description = "very verbose execution")
+	private boolean veryVerbose;
+
 	@Parameters(index = "0", arity = "1", paramLabel = "chrtbl", description = "binary input file(s): CHRTBL")
 	private Path chrtblInputPath;
 
@@ -43,8 +46,11 @@ public class PrecompressApp implements Callable<Integer> {
 			description = "Excluded range of addresses: <from>..<to>")
 	private Range<Integer> exclusionRange;
 
-	@Option(names = { "-i", "--invert" }, description = "invert the CHRTBL/CLRTBL bytes of the entire charset")
-	private boolean invert;
+	@Option(names = { "-s", "--stripped" }, description = "force stripped image")
+	private boolean forceStrippedImage;
+
+	@Option(names = { "-n", "--non-stripped" }, description = "force non-stripped image")
+	private boolean forceNonStrippedImage;
 
 	private static class ExclusionTypeConverter implements ITypeConverter<Range<Integer>> {
 
@@ -92,7 +98,10 @@ public class PrecompressApp implements Callable<Integer> {
 
 		final MsxCharset optimizedCharset = new MsxCharsetOptimizer()
 				.setExclusion(this.exclusionRange)
-				.setInvert(this.invert)
+				.setForceStrippedImage(
+					  this.forceStrippedImage    ? Boolean.TRUE
+					: this.forceNonStrippedImage ? Boolean.FALSE
+					: null)
 				.optimize(MsxCharset.of(chrtblBytes, clrtblBytes));
 
 		// Writes the optimized file
@@ -106,7 +115,9 @@ public class PrecompressApp implements Callable<Integer> {
 
 	private void handleVerbose() {
 
-		if (this.verbose) {
+		if (this.veryVerbose) {
+			Configuration.set("writer.level", "trace");
+		} else if (this.verbose) {
 			Configuration.set("writer.level", "debug");
 		}
 	}

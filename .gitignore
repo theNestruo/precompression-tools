@@ -11,3 +11,4 @@ lib
 
 src/test/resources/trucho-*.*
 src/test/resources/roadster-*.*
+src/test/resources/CityConnection_*.*

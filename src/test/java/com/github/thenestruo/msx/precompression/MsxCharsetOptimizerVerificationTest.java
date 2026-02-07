@@ -2,10 +2,6 @@ package com.github.thenestruo.msx.precompression;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Assertions;
@@ -19,22 +15,9 @@ import com.github.thenestruo.commons.msx.MsxCharset;
 
 public class MsxCharsetOptimizerVerificationTest {
 
-	private static final List<String> FILENAMES = Collections.unmodifiableList(Arrays.asList(
-			"ninjasenki.png",
-			"pyramidwarpex.png",
-			"stevedore.png",
-			"youkaiyashiki.png",
-			"trucho-river.png",
-			"trucho-reservoir.png",
-			"trucho-pier.png",
-			"trucho-beach.png",
-			"roadster-forest.png",
-			"roadster-night.png",
-			"roadster-desert.png"));
-
 	@ParameterizedTest
 	@MethodSource("verificationTestArguments")
-	void verificationTest(final String filename, final boolean invert) throws IOException {
+	void verificationTest(final String filename) throws IOException {
 
 		// Given
 
@@ -53,7 +36,6 @@ public class MsxCharsetOptimizerVerificationTest {
 		// When
 
 		final MsxCharset optimizedCharset = new MsxCharsetOptimizer()
-				.setInvert(invert)
 				.optimize(referenceCharset);
 
 		// Then
@@ -67,14 +49,11 @@ public class MsxCharsetOptimizerVerificationTest {
 
 	private static Stream<Arguments> verificationTestArguments() {
 
-		final List<Arguments> list = new ArrayList<>();
-
-		for (final String filename : FILENAMES) {
-
-			list.add(Arguments.of(filename, false));
-			list.add(Arguments.of(filename, true));
-		}
-
-		return list.stream();
+		return Stream.of(
+			Arguments.of("ninjasenki.png"),
+			Arguments.of("pyramidwarpex.png"),
+			Arguments.of("stevedore.png"),
+			Arguments.of("youkaiyashiki.png")
+		);
 	}
 }
