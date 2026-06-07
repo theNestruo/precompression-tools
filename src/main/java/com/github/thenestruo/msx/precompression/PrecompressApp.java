@@ -137,12 +137,12 @@ public class PrecompressApp implements Callable<Integer> {
 
 	private Path chrtblOutputPath() {
 
-		return this.chrtblInputPath.resolveSibling(String.format("%s.opt", this.chrtblInputPath.getFileName()));
+		return this.chrtblInputPath.resolveSibling("%s.opt".formatted(this.chrtblInputPath.getFileName()));
 	}
 
 	private Path clrtblOutputPath() {
 
-		return this.clrtblInputPath().resolveSibling(String.format("%s.opt", this.clrtblInputPath().getFileName()));
+		return this.clrtblInputPath().resolveSibling("%s.opt".formatted(this.clrtblInputPath().getFileName()));
 	}
 
 	private byte[] readBinary(final Path path) throws IOException {

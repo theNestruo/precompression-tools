@@ -1,3 +1,6 @@
+## Archived
+
+See [Another unpdate on PCXTOOLS and precompression tools](https://thenestruo.github.io/#link-2026-05-31) post.
 
 # Precompression tools
 
@@ -5,9 +8,11 @@ Optimizes MSX CHRTBL/CLRTBL data to be more compressor friendly (both for RLE co
 
 ~~Extends the original optimization algorithm added to [PCXTOOLS v4.0](https://thenestruo.github.io/#link-2025-12-09) to use the entire charset data (instead of particular characters) and prefer larger chunks of RLE-friendly in either CHRTBL or CLRTBL data.~~
 
-Compression ratio improvement will vary depending on the particular charset, the conversion (image to CHRTBL/CLRTBL data), and the actual compression tool, but expect a size reduction of up to ~14%.
+~~Compression ratio improvement will vary depending on the particular charset, the conversion (image to CHRTBL/CLRTBL data), and the actual compression tool, but expect a size reduction of up to ~14%.~~
 
-> Note: Some tools, such as [aOrante](https://github.com/mvac7)'s [MSXTiles-devtool](https://github.com/mvac7/MSXTILESdevtool]), do a really good job and generate optimal, or almost optimal, CHRTBL/CLRTBL data. In those cases, this tool cannot further reduce the compressed size.
+> ~~Note: Some tools, such as [aOrante](https://github.com/mvac7)'s [MSXTiles-devtool](https://github.com/mvac7/MSXTILESdevtool]), do a really good job and generate optimal, or almost optimal, CHRTBL/CLRTBL data. In those cases, this tool cannot further reduce the compressed size.~~
+
+See [An unpdate on PCXTOOLS and precompression tools](https://thenestruo.github.io/#link-2026-01-18) post.
 
 ## Description and examples
 
@@ -16,14 +21,16 @@ See [Precompression tools](https://thenestruo.github.io/#link-2026-01-04) post.
 ## Usage
 
 ```
-Usage: java -jar precompression.jar [-hinv] [-e=<exclusionRange>] chrtbl [clrtbl]
-      chrtbl      binary input file(s): CHRTBL
-      [clrtbl]    binary input file(s): CLRTBL
-  -h, --help      shows usage
-  -v, --verbose   verbose execution
+Usage: java -jar precompression.jar [-hnsv] [-vv] [-e=<exclusionRange>] chrtbl [clrtbl]
+      chrtbl                binary input file(s): CHRTBL
+      [clrtbl]              binary input file(s): CLRTBL
+  -h, --help                shows usage
+  -v, --verbose             verbose execution
+      -vv, --very-verbose   very verbose execution
   -e, --exclude=<exclusionRange>
-                  Excluded range of addresses: <from>..<to>
-  -i, --invert    invert the CHRTBL/CLRTBL bytes of the entire charset
+                            Excluded range of addresses: <from>..<to>
+  -s, --stripped            force stripped image
+  -n, --non-stripped        force non-stripped image
 ```
 
 ## Author and last words
